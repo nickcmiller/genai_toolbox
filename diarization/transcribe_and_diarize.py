@@ -1,15 +1,14 @@
+import os
+import sys
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
 from typing import List
 from pydub import AudioSegment
-import os
 import json
 import logging
 import traceback
 import shutil
-import sys
-
-# Add the parent directory to the Python path
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
 
 from download_sources.download_video import yt_dlp_download
 from diarization.custom_whisper_diarization import diarize_and_condense_audio_chunks

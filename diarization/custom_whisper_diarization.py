@@ -1,3 +1,8 @@
+import os
+import sys
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
 from pyannote.audio import Pipeline
 import torch
 
@@ -8,7 +13,7 @@ from dotenv import load_dotenv
 from pydub import AudioSegment
 from typing import List, Dict
 import json
-import os
+
 
 logging.basicConfig(level=logging.DEBUG)
 

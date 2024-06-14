@@ -1,12 +1,18 @@
+import os
+import sys
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
 from groq import Groq
 from openai import OpenAI
 from typing import List, Tuple
 import logging
 import traceback
+
 from dotenv import load_dotenv
+load_dotenv('.env')
 
 logging.basicConfig(level=logging.INFO)
-load_dotenv('.env')
 
 def get_client_and_model(
     api: str, 

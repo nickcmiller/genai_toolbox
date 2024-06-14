@@ -1,6 +1,10 @@
-from model_calls import groq_text_response, openai_text_response
-
 import os
+import sys
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
+from text_prompting.model_calls import groq_text_response, openai_text_response
+
 import logging
 import traceback
 import re
