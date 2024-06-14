@@ -1,4 +1,4 @@
-from text_models import groq_text_response, openai_text_response
+from model_calls import groq_text_response, openai_text_response
 
 import os
 import logging
