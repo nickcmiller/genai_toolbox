@@ -16,13 +16,13 @@ def parse_feed(
     feed_url: str
 ) -> feedparser.FeedParserDict:
     """
-    Parses a podcast feed and returns the feed object.
+        Parses a podcast feed and returns the feed object.
 
-    Arguments:
-        feed_url: str - The URL of the podcast feed.
+        Arguments:
+            feed_url: str - The URL of the podcast feed.
 
-    Returns:
-        feedparser.FeedParserDict - The feed object.
+        Returns:
+            feedparser.FeedParserDict - The feed object.
     """
     try:
         feed = feedparser.parse(feed_url)
@@ -38,13 +38,23 @@ def extract_entry_metadata(
     entry: dict
 ) -> dict:
     """
-    Extracts metadata from an entry in a podcast feed.
+        Extracts metadata from an entry in a podcast feed.
 
-    Arguments:
-        entry: dict - The entry to extract metadata from.
+        Arguments:
+            entry: dict - The entry to extract metadata from.
 
-    Returns:
-        dict - The extracted metadata.
+        Returns:
+            dict - The extracted metadata.
+
+        Example:
+            >>> result = extract_entry_metadata(parse_feed("https://feeds.simplecast.com/3hnxp7yk")[0])
+            >>> print(result)
+            {'entry_id': 'd8029cde-4677-4ac9-bdbc-2f05fba1c1c5', 
+            'title': '#351 The Founder of Rolex: Hans Wilsdorf', 
+            'published': 'Tue, 4 Jun 2024 16:05:59 +0000', 
+            'summary': 'What I learned from reading about Hans Wilsdorf and the founding of Rolex.', 
+            'url': 'https://www.founderspodcast.com/', 
+            'feed_summary': 'Learn from history\'s greatest entrepreneurs...'}
     """
     entry_id = entry.id
     title = entry.title
@@ -62,11 +72,26 @@ def extract_entry_metadata(
 
 def extract_metadata_from_feed(
     feed: feedparser.FeedParserDict
-) -> dict:
+) -> List[dict]:
     """
-    Extracts metadata from a podcast feed.
+        Extracts metadata from a podcast feed.
 
+        Arguments:
+            feed: feedparser.FeedParserDict - The feed object.
 
+        Returns:
+            List[dict] - A list of entries from the podcast feed.
+
+        Example:
+            >>> result = extract_metadata_from_feed(parse_feed("https://feeds.simplecast.com/3hnxp7yk"))
+            >>> print(result)
+            {'entry_id': 'd8029cde-4677-4ac9-bdbc-2f05fba1c1c5', 
+            'title': '#351 The Founder of Rolex: Hans Wilsdorf', 
+            'published': 'Tue, 4 Jun 2024 16:05:59 +0000', 
+            'summary': 'What I learned from reading about Hans Wilsdorf and the founding of Rolex.', 
+            'url': 'https://www.founderspodcast.com/', 
+            'feed_summary': 'Learn from history\'s greatest entrepreneurs...'}, 
+            {...}, {...}]
     """
     entries = []
     
@@ -149,4 +174,4 @@ def download_podcast_audio(
     return file_name
 
 if __name__ == "__main__":
-    print(json.dumps(return_entries_from_feed("https://feeds.megaphone.fm/ATHLLC5883700320")[0], indent=4))
+    print(json.dumps(return_entries_from_feed("https://feeds.megaphone.fm/ATHLLC5883700320")[4], indent=4))
