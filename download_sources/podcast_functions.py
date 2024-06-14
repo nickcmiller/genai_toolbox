@@ -1,10 +1,14 @@
-import feedparser
+import os
+import sys
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
 
-import requests
+import feedparser
 import urllib
+import requests
+
 import logging
 import traceback
-import os
 import json
 from typing import List
 
@@ -46,7 +50,7 @@ def extract_entry_metadata(
     title = entry.title
     published = entry.published
     summary = entry.summary
-    url = entry.links[0]['href']
+    url = next((link['href'] for link in entry.links if link.rel == 'enclosure'), None)
     
     return {
         "entry_id": entry_id,
@@ -61,6 +65,8 @@ def extract_metadata_from_feed(
 ) -> dict:
     """
     Extracts metadata from a podcast feed.
+
+
     """
     entries = []
     
@@ -74,6 +80,28 @@ def extract_metadata_from_feed(
 def return_entries_from_feed(
     feed_url: str
 ) -> List[dict]:
+    """
+        Returns a list of entries from a podcast feed.
+
+        Arguments:
+            feed_url: str - The URL of the podcast feed.
+
+        Returns:
+            List[dict] - A list of entries from the podcast feed.
+
+        Example:
+            >>> result = return_entries_from_feed(
+                feed_url="https://feeds.simplecast.com/3hnxp7yk"
+            )
+            >>> print(result)
+            [{'entry_id': 'd8029cde-4677-4ac9-bdbc-2f05fba1c1c5', 
+            'title': '#351 The Founder of Rolex: Hans Wilsdorf', 
+            'published': 'Tue, 4 Jun 2024 16:05:59 +0000', 
+            'summary': 'What I learned from reading about Hans Wilsdorf and the founding of Rolex.', 
+            'url': 'https://www.founderspodcast.com/', 
+            'feed_summary': 'Learn from history\'s greatest entrepreneurs...'}, 
+            {...}, {...}]
+    """
     feed = parse_feed(feed_url)
     return extract_metadata_from_feed(feed)
 
@@ -83,15 +111,24 @@ def download_podcast_audio(
     file_path: str=None
 ) -> str:
     """
-    Downloads a podcast audio file from a URL and saves it to a file.
+        Downloads a podcast audio file from a URL and saves it to a file.
 
-    Arguments:
-        audio_url: str - The URL of the podcast audio file.
-        title: str - The title of the podcast episode.
-        file_path: str - The path to save the podcast audio file to.
+        Arguments:
+            audio_url: str - The URL of the podcast audio file.
+            title: str - The title of the podcast episode.
+            file_path: str - The path to save the podcast audio file to.
 
-    Returns:
-        str - The path to the saved podcast audio file.
+        Returns:
+            str - The path to the saved podcast audio file.
+
+        Example:
+            >>> result = download_podcast_audio(
+                audio_url="https://www.example.com/podcast.mp3",
+                title="Podcast Episode Title",
+                file_path="/path/to/save/podcast.mp3"
+            )
+            >>> print(result)
+            "/path/to/save/podcast.mp3"
     """
     if file_path is None:
         file_path = os.getcwd() + "/"
@@ -110,3 +147,6 @@ def download_podcast_audio(
         logging.error(f"Failed to download the file: {title}")
 
     return file_name
+
+if __name__ == "__main__":
+    print(json.dumps(return_entries_from_feed("https://feeds.megaphone.fm/ATHLLC5883700320")[0], indent=4))

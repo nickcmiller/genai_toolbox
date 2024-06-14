@@ -1,12 +1,20 @@
+import os
+import sys
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
 import yt_dlp
 from pydub import AudioSegment
-import os
+
 import logging
 import traceback
 
 logging.basicConfig(level=logging.INFO)
 
-def yt_dlp_download(yt_url:str, output_path:str = None) -> str:
+def yt_dlp_download(
+    yt_url:str, 
+    output_path:str = None
+) -> str:
     """
     Downloads the audio track from a specified YouTube video URL using the yt-dlp library, then converts it to an MP3 format file.
 
