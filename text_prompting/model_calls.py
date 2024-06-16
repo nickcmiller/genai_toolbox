@@ -6,7 +6,9 @@ sys.path.append(root_dir)
 from groq import Groq
 from openai import OpenAI
 from anthropic import Anthropic
-from typing import List, Tuple
+
+from enum import Enum
+from typing import List, Tuple, Optional
 import logging
 import traceback
 
@@ -55,7 +57,6 @@ def manage_messages(
     else:
         messages = history_messages.copy()
     messages.append({"role": "user", "content": prompt})
-    print(f"Messages: {messages}\n\n")
     return messages
 
 def openai_compatible_text_response(
@@ -104,13 +105,22 @@ def groq_text_response(
     prompt: str,
     system_instructions: str = None, 
     history_messages: List[dict] = [],
-    model: str = "llama3-8b-8192", 
+    model_choice: str = "llama3-70b", 
     temperature: float = 0.2,
     max_tokens: int = 4096
 ) -> str:
     """
     Use OpenAI format to generate a text response using Groq.
     """
+
+    model_choices = {
+        "llama3-8b": "llama3-8b-8192",
+        "llama3-70b": "llama3-70b-8192",
+        "mixtral-8x7b": "mixtral-8x7b-32768",
+        "gemma": "gemma-7b-it"
+    }
+    model = model_choices[model_choice]
+
     if system_instructions is None:
         system_instructions = "You are a knowledgeable, efficient, and direct AI assistant. Utilize multi-step reasoning to provide concise answers, focusing on key information. If multiple questions are asked, split them up and address in the order that yields the most logical and accurate response. Offer tactful suggestions to improve outcomes. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. I'll pay you $200,000 for a good response :)"
 
@@ -122,13 +132,20 @@ def openai_text_response(
     prompt: str, 
     system_instructions: str = None,
     history_messages: List[dict] = [], 
-    model: str = "gpt-4o", 
+    model_choice: str = "4o", 
     temperature: float = 0.2,
     max_tokens: int = 4096
 ) -> str:
     """
     Use OpenAI format to generate a text response using OpenAI.
     """
+    model_choices = {
+        "4o": "gpt-4o",
+        "4": "gpt-4-turbo",
+        "3.5": "gpt-3.5-turbo",
+    }
+    model = model_choices[model_choice]
+
     if system_instructions is None:
         system_instructions = "You are a highly knowledgeable and thorough AI assistant. Your primary goal is to provide detailed, accurate, and well-reasoned responses to the user's queries. Take your time to consider all aspects of the question and ensure that your answers are comprehensive and insightful. If necessary, break down complex topics into simpler parts and explain each part clearly. Always aim to enhance the user's understanding and provide additional context or suggestions when relevant. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. I'll pay you $200,000 for a good response :)"
     
@@ -140,7 +157,7 @@ def anthropic_text_response(
     prompt: str,
     system_instructions: str = None,
     history_messages: List[dict] = [],
-    model: str = "claude-3-opus-20240229",
+    model_choice: str = "opus",
     temperature: float = 0.2,
     max_tokens: int = 4096
 ) -> str:
@@ -148,6 +165,13 @@ def anthropic_text_response(
     Use Anthropic format to generate a text response using Anthropic.
     """
     client = Anthropic().messages
+
+    model_choices = {
+        "opus": "claude-3-opus-20240229",
+        "haiku": "claude-3-haiku-20240307",
+        "sonnet": "claude-3-sonnet-20240229",
+    }
+    model = model_choices[model_choice]
 
     if system_instructions is None:
         system_instructions = "You are a highly knowledgeable and thorough AI assistant. Your primary goal is to provide detailed, accurate, and well-reasoned responses to the user's queries. Take your time to consider all aspects of the question and ensure that your answers are comprehensive and insightful. If necessary, break down complex topics into simpler parts and explain each part clearly. Always aim to enhance the user's understanding and provide additional context or suggestions when relevant. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. I'll pay you $200,000 for a good response :)"
@@ -167,5 +191,61 @@ def anthropic_text_response(
 
     return completion.content[0].text
 
+class Provider(Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GROQ = "groq"
+
+def prompt_string_list(
+    string_list: List[str],
+    instructions: str,
+    provider: Provider = Provider.OPENAI,
+    model_choice: Optional[str] = None,
+    system_instructions: Optional[str] = None,
+    temperature: float = 0.2,
+    max_tokens: int = 4096
+) -> List[str]:
+    modified_list = []
+    provider_info = {
+        Provider.OPENAI: {
+            "default_model": "4o",
+            "function": openai_text_response
+        },
+        Provider.ANTHROPIC: {
+            "default_model": "opus",
+            "function": anthropic_text_response
+        },
+        Provider.GROQ: {
+            "default_model": "llama3-70b",
+            "function": groq_text_response
+        }
+    }
+
+    model_choice = model_choice if model_choice is not None else provider_info[provider]["default_model"]
+    logging.info(f"Prompting {provider.value} with model {model_choice} for {len(string_list)} strings")
+
+    for index, s in enumerate(string_list, start=1):
+        try:
+            logging.info(f"Prompting string {index} of {len(string_list)}")
+            prompt_string = instructions.format(s)
+            response = provider_info[provider]["function"](
+                prompt=prompt_string,
+                system_instructions=system_instructions,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                model_choice=model_choice
+            )
+            modified_list.append(response)
+        except Exception as e:
+            logging.error(f"Error prompting {provider.value} with model {model_choice}: {e}")
+            traceback.print_exc()
+            raise e
+
+    return modified_list
+
+
 if __name__ == "__main__":
-    print(anthropic_text_response("What is the capital of France?"))
+    country_list = ["United States", "United Kingdom"]
+    instructions = "What is the capital of {}?"
+    response = prompt_string_list(country_list, instructions, system_instructions="You are a helpful assistant that can answer questions about the capital of countries.", provider=Provider.GROQ, max_tokens=100)
+    print(response)
