@@ -36,6 +36,43 @@ def retrieve_string_from_file(
         logging.error(traceback.format_exc())
         return None
 
+def write_string_to_file(
+    file_path: str,
+    text: str,
+    mode: str = 'w',
+    encoding: str = 'utf-8'
+) -> None:
+    """
+        Writes a given text to a specified file. If the file path does not specify a directory,
+        the file will be created in the current working directory.
+
+        Args:
+            file_path (str): The path to the file where the text will be written.
+            text (str): The text to write to the file.
+            mode (str): The mode in which the file is opened, default is 'w' (write mode).
+            encoding (str): The encoding to use for the file, default is 'utf-8'.
+
+        Raises:
+            ValueError: If the file_path or text is not a string.
+            IOError: If an error occurs during file writing.
+    """
+    if not isinstance(file_path, str) or not isinstance(text, str):
+        raise ValueError("file_path and text must be strings.")
+
+    # Ensure the directory exists or use the current working directory
+    directory = os.path.dirname(file_path)
+    if not directory:
+        file_path = os.path.join(os.getcwd(), file_path)
+    elif not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+    try:
+        with open(file_path, mode, encoding=encoding) as file:
+            file.write(text)
+    except IOError as e:
+        logging.error(f"Failed to write to file {file_path}: {e}")
+        raise
+
 # Sorting files with numbers
 def extract_leading_number_from_filename(
     filename: str
