@@ -3,11 +3,11 @@ import sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
-from groq import Groq
-from openai import OpenAI
-from anthropic import Anthropic
+from clients.groq_client import groq_client
+from clients.openai_client import openai_client
+from clients.anthropic_client import anthropic_client
 
-from typing import List, Tuple, Optional
+from typing import List, Optional, Any
 import logging
 import traceback
 
@@ -16,10 +16,9 @@ load_dotenv(os.path.join(root_dir, '.env'))
 
 logging.basicConfig(level=logging.INFO)
 
-def get_client_and_model(
-    api: str, 
-    model: str
-) -> Tuple[OpenAI, str]:
+def get_client(
+    api: str
+) -> Any:
     """
         Document the get_client_and_model function.
 
@@ -39,12 +38,14 @@ def get_client_and_model(
             # Output: <OpenAI client>, gpt-4o
     """
     if api == "groq":
-        client = Groq().chat.completions
+        client = groq_client().chat.completions
     elif api == "openai":
-        client = OpenAI().chat.completions
+        client = openai_client().chat.completions
+    elif api == "anthropic":
+        client = anthropic_client().messages
     else:
         raise ValueError("Unsupported API")
-    return client, model
+    return client
 
 def manage_messages(
     prompt: str,
@@ -84,7 +85,7 @@ def openai_compatible_text_response(
             print(response)
             # Output: The capital of France is Paris.
     """
-    client, model = get_client_and_model(api, model)
+    client = get_client(api)
 
     try:
         completion = client.create(
@@ -179,7 +180,7 @@ def anthropic_text_response(
     """
     Use Anthropic format to generate a text response using Anthropic.
     """
-    client = Anthropic().messages
+    client = get_client(api="anthropic")
 
     model_choices = {
         "opus": "claude-3-opus-20240229",
@@ -208,3 +209,6 @@ def anthropic_text_response(
     except Exception as e:
         logging.error(f"Failed to generate response with Anthropic: {e}")
         raise RuntimeError("Failed to generate response due to an internal error.")
+
+if __name__ == "__main__":
+    print(openai_text_response("What is the capital of Netherlands?"))

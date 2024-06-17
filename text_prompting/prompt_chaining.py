@@ -58,46 +58,50 @@ def prompt_string_list(
 
     return modified_list
 
-def execute_prompt_dict(
-    modified_strings: List[str],
-    original_strings: List[str], 
-    prompt: dict,
-    delimiter: str
-) -> List[str]:
-    """
-        Executes a prompt on a list of strings.
-
-        Args:
-            modified_strings (List[str]): The list of strings to be modified.
-            original_strings (List[str]): The list of strings to be used as the original input.
-            prompt (dict): The prompt to be executed.
-                - provider (Provider): The provider to be used to execute the prompt.
-                - instructions (str): The instructions to be used to execute the prompt.
-                - model_choice (str): The model to be used to execute the prompt.
-            delimiter (str): The delimiter to be used to concatenate the strings.
-
-        Returns:
-            List[str]: The list of modified strings.
-    """
-    provider = prompt["provider"]
-    instructions = prompt["instructions"] 
-    model_choice = prompt.get("model_choice")
-    
-    modified_strings = concatenate_list_text_to_list_text(
-        modified_strings, original_strings, delimiter=delimiter
-    )
-    return prompt_string_list(
-        string_list=modified_strings,
-        provider=provider,
-        instructions=instructions,
-        model_choice=model_choice
-    )
-
-def multiple_prompt_string_list(
+def revise_with_prompt_list(
     string_list: List[str],
     prompt_list: List[dict],
     delimiter: str = f"\n{'-'*10}\n"
 ) -> dict:
+
+
+    def execute_prompt_dict(
+        modified_strings: List[str],
+        original_strings: List[str], 
+        prompt: dict,
+        delimiter: str
+    ) -> List[str]:
+        """
+            Executes a prompt on a list of strings.
+
+            Args:
+                modified_strings (List[str]): The list of strings to be modified.
+                original_strings (List[str]): The list of strings to be used as the original input.
+                prompt (dict): The prompt to be executed.
+                    - provider (Provider): The provider to be used to execute the prompt.
+                    - instructions (str): The instructions to be used to execute the prompt.
+                    - model_choice (str): The model to be used to execute the prompt.
+                delimiter (str): The delimiter to be used to concatenate the strings.
+
+            Returns:
+                List[str]: The list of modified strings.
+        """
+        provider = prompt["provider"]
+        instructions = prompt["instructions"] 
+        model_choice = prompt.get("model_choice")
+        
+        modified_strings = concatenate_list_text_to_list_text(
+            modified_strings, 
+            original_strings, 
+            delimiter=delimiter
+        )
+        return prompt_string_list(
+            string_list=modified_strings,
+            provider=provider,
+            instructions=instructions,
+            model_choice=model_choice
+        )
+
     revision_dict = {"Original": string_list}
     modified_strings = [""] * len(string_list)
     
@@ -129,7 +133,7 @@ if __name__ == "__main__":
         {"provider": Provider.GROQ, "instructions": "What is the experience of the coach? \nPrior info: {}", "model_choice": "llama3-70b", "system_instructions": "You are a helpful assistant that can answer questions about the experience of NBA coaches."},
         {"provider": Provider.GROQ, "instructions": "Who is the GM the coach reports to? \nPrior info: {}", "model_choice": "llama3-70b", "system_instructions": "You are a helpful assistant that can answer questions about the GM of NBA teams."}
     ]
-    response = multiple_prompt_string_list(list_text, prompt_list)
+    response = revise_with_prompt_list(list_text, prompt_list)
     for revision in response["revision_dict"]:
         print(f"\n{'#'*10}\n{revision}\n{'#'*10}\n")
         for r in response["revision_dict"][revision]:
