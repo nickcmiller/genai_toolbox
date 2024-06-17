@@ -2,12 +2,10 @@ import os
 import sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
+from helper_functions.datetime_helpers import get_date_with_timezone
 
 import feedparser
 import urllib
-from dateutil import parser
-import pytz
-from datetime import datetime
 
 import requests
 import logging
@@ -133,50 +131,10 @@ def return_all_entries_from_feed(
     feed = parse_feed(feed_url)
     return extract_metadata_from_feed(feed)
 
-def get_date_with_timezone(
-    date_str: str, 
-    timezone_str: str = 'UTC'
-) -> datetime:
-    """
-        Parses a date string and returns a datetime object localized to the specified timezone.
-
-        Args:
-            date_str (str): The date string to parse.
-            timezone_str (str): The timezone to localize the date to. Defaults to 'UTC'.
-
-        Returns:
-            datetime: A datetime object localized to the specified timezone.
-
-        Raises:
-            ValueError: If the date string is invalid or the timezone string is not recognized.
-
-        Examples:
-            >>> get_date_with_timezone("2024-06-01")
-            datetime.datetime(2024, 6, 1, 0, 0, tzinfo=<UTC>)
-            >>> get_date_with_timezone("June 1st, 2024", "America/New_York")
-            datetime.datetime(2024, 6, 1, 0, 0, tzinfo=<DstTzInfo 'America/New_York' EST-1 day, 19:00:00 STD>)
-    """
-    try:
-        naive_date = parser.parse(date_str)
-    except ValueError as e:
-        raise ValueError(f"Invalid date string: {date_str}. Error: {e}")
-
-    try:
-        timezone = pytz.timezone(timezone_str)
-    except pytz.UnknownTimeZoneError as e:
-        raise ValueError(f"Unknown timezone: {timezone_str}. Error: {e}")
-
-    if naive_date.tzinfo is None:
-        localized_date = timezone.localize(naive_date)
-    else:
-        localized_date = naive_date.astimezone(timezone)
-
-    return localized_date
-
 def return_entries_by_date(
     feed_url: str,
     start_date_str: str,
-    end_date_str: Optional[str] = None
+    end_date_str: Optional[str] = "today"
 ) -> List[dict]:
     """
         Retrieves podcast entries from a specified feed URL that are published within a given date range.
@@ -192,10 +150,6 @@ def return_entries_by_date(
         Raises:
             ValueError: If the start_date_str or end_date_str cannot be parsed into a date.
     """
-    # Set default end date to today if not provided
-    if end_date_str is None:
-        end_date_str = datetime.now().strftime("%Y-%m-%d")
-
     try:
         start_date = get_date_with_timezone(start_date_str)
         end_date = get_date_with_timezone(end_date_str)
@@ -252,3 +206,14 @@ def download_podcast_audio(
         logging.error(f"Failed to download the file: {title}")
 
     return file_name
+
+if __name__ == "__main__":
+    result = return_entries_by_date(
+        feed_url="https://feeds.megaphone.fm/HS2300184645",
+        start_date_str="June 7"
+    )
+   
+    for entry in result:
+        print("---")
+        print(entry['title'])
+        print(entry['published'])
