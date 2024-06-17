@@ -8,12 +8,11 @@ from clients.openai_client import openai_client
 from clients.anthropic_client import anthropic_client
 
 from typing import List, Optional, Any
-import logging
 import traceback
-
+import logging
 from dotenv import load_dotenv
-load_dotenv(os.path.join(root_dir, '.env'))
 
+load_dotenv(os.path.join(root_dir, '.env'))
 logging.basicConfig(level=logging.INFO)
 
 def get_client(
@@ -189,13 +188,15 @@ def anthropic_text_response(
     }
     if model_choice not in model_choices:
         raise ValueError(f"Invalid model_choice. Available options: {list(model_choices.keys())}")
+    
     model = model_choices[model_choice]
 
     default_system_instructions = "You are a highly knowledgeable and thorough AI assistant. Your primary goal is to provide detailed, accurate, and well-reasoned responses to the user's queries. Take your time to consider all aspects of the question and ensure that your answers are comprehensive and insightful. If necessary, break down complex topics into simpler parts and explain each part clearly. Always aim to enhance the user's understanding and provide additional context or suggestions when relevant. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. I'll pay you $200,000 for a good response :)"
     system_instructions = system_instructions if system_instructions is not None else default_system_instructions
     history_messages = history_messages if history_messages is not None else []
 
-    messages = [{"role": "user", "content": system_instructions}, {"role": "assistant", "content": "I will follow your instructions to the best of my ability."}] if not history_messages else history_messages.copy()
+    messages = [{"role": "user", "content": system_instructions}, {"role": "assistant", "content": "I will follow your instructions."}] if not history_messages else history_messages.copy()
+    
     messages.append({"role": "user", "content": prompt})
 
     try:
