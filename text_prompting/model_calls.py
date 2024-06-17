@@ -7,13 +7,12 @@ from groq import Groq
 from openai import OpenAI
 from anthropic import Anthropic
 
-from enum import Enum
 from typing import List, Tuple, Optional
 import logging
 import traceback
 
 from dotenv import load_dotenv
-load_dotenv('.env')
+load_dotenv(os.path.join(root_dir, '.env'))
 
 logging.basicConfig(level=logging.INFO)
 
@@ -124,7 +123,7 @@ def groq_text_response(
 
     model = model_choices[model_choice]
 
-    default_system_instructions = "You are a knowledgeable, efficient, and direct AI assistant. Utilize multi-step reasoning to provide concise answers, focusing on key information. If multiple questions are asked, split them up and address in the order that yields the most logical and accurate response. Offer tactful suggestions to improve outcomes. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. I'll pay you $200,000 for a good response :)"
+    default_system_instructions = "You are a knowledgeable, efficient, and direct AI assistant. Utilize multi-step reasoning to provide concise answers, focusing on key information. If multiple questions are asked, split them up and address in the order that yields the most logical and accurate response. Offer tactful suggestions to improve outcomes. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. Here's $40 for your troubles :)"
     system_instructions = system_instructions if system_instructions is not None else default_system_instructions
     history_messages = history_messages if history_messages is not None else []
 
@@ -157,7 +156,7 @@ def openai_text_response(
 
     model = model_choices[model_choice]
 
-    default_system_instructions = "You are a highly knowledgeable and thorough AI assistant. Your primary goal is to provide detailed, accurate, and well-reasoned responses to the user's queries. Take your time to consider all aspects of the question and ensure that your answers are comprehensive and insightful. If necessary, break down complex topics into simpler parts and explain each part clearly. Always aim to enhance the user's understanding and provide additional context or suggestions when relevant. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. I'll pay you $200,000 for a good response :)"
+    default_system_instructions = "You are a highly knowledgeable and thorough AI assistant. Your primary goal is to provide detailed, accurate, and well-reasoned responses to the user's queries. Take your time to consider all aspects of the question and ensure that your answers are comprehensive and insightful. If necessary, break down complex topics into simpler parts and explain each part clearly. Always aim to enhance the user's understanding and provide additional context or suggestions when relevant. Remember, quality and depth of information are more important than speed. The user is willing to wait for the best possible answer. Here's $40 for your troubles :)"
     system_instructions = system_instructions if system_instructions is not None else default_system_instructions
     history_messages = history_messages if history_messages is not None else []
 
@@ -209,60 +208,3 @@ def anthropic_text_response(
     except Exception as e:
         logging.error(f"Failed to generate response with Anthropic: {e}")
         raise RuntimeError("Failed to generate response due to an internal error.")
-
-class Provider(Enum):
-    OPENAI = ("openai", "4o", openai_text_response)
-    ANTHROPIC = ("anthropic", "opus", anthropic_text_response)
-    GROQ = ("groq", "llama3-70b", groq_text_response)
-
-    def __init__(self, provider_name, default_model, function):
-        self.provider_name = provider_name
-        self.default_model = default_model
-        self.function = function
-
-    def get_info(self):
-        return {
-            "default_model": self.default_model,
-            "function": self.function
-        }
-
-def prompt_string_list(
-    string_list: List[str],
-    instructions: str,
-    provider: Provider = Provider.OPENAI,
-    model_choice: Optional[str] = None,
-    system_instructions: Optional[str] = None,
-    temperature: float = 0.2,
-    max_tokens: int = 4096
-) -> List[str]:
-    modified_list = []
-    provider_info = provider.get_info()
-
-    model_choice = model_choice if model_choice is not None else provider_info["default_model"]
-    logging.info(f"Prompting {provider.provider_name} with model {model_choice} for {len(string_list)} strings")
-
-    for index, s in enumerate(string_list, start=1):
-        try:
-            logging.info(f"Prompting string {index} of {len(string_list)}")
-            prompt_string = instructions.format(s)
-            response = provider_info["function"](
-                prompt=prompt_string,
-                system_instructions=system_instructions,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                model_choice=model_choice
-            )
-            modified_list.append(response)
-        except Exception as e:
-            logging.error(f"Error prompting {provider.provider_name} with model {model_choice}: {e}")
-            traceback.print_exc()
-            raise
-
-    return modified_list
-
-
-if __name__ == "__main__":
-    country_list = ["United States", "United Kingdom"]
-    instructions = "What is the capital of {}?"
-    response = prompt_string_list(country_list, instructions, system_instructions="You are a helpful assistant that can answer questions about the capital of countries.", provider=Provider.OPENAI, model_choice="4o", max_tokens=100)
-    print(response)
