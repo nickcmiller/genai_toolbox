@@ -29,8 +29,8 @@ def retrieve_string_from_file(
             raise ValueError(f"File {file_path} is not a text or markdown file.")
         
         with open(file_path, 'r', encoding='utf-8') as file:
-            document_text = file.read()
-            return document_text
+            text = file.read()
+            return text
     except (IOError, ValueError) as e:
         logging.error(f"retrieve_text_from_file failed to read file {file_path}: {e}")
         logging.error(traceback.format_exc())

@@ -3,7 +3,7 @@ import sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 from helper_functions.datetime_helpers import get_date_with_timezone
-
+from text_prompting.model_calls import groq_text_response
 import feedparser
 import urllib
 
@@ -206,6 +206,25 @@ def download_podcast_audio(
         logging.error(f"Failed to download the file: {title}")
 
     return file_name
+
+def generate_audio_summary(
+    summary: str,
+    feed_summary: str
+) -> str:
+    summary_prompt = f"""
+        Description of the podcast:\n {feed_summary} \n\n
+        
+        Description of this specific podcast episode:\n {summary} \n
+
+        Describe the hosts and the guests expected in this specific episode.
+    """
+    
+    response = groq_text_response(
+        model_choice="llama3-70b",
+        prompt=summary_prompt
+    )
+
+    return response
 
 if __name__ == "__main__":
     result = return_entries_by_date(

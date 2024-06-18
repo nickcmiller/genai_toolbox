@@ -16,7 +16,7 @@ import json
 
 
 logging.basicConfig(level=logging.INFO)
-load_dotenv('.env')
+load_dotenv(os.path.join(root_dir, '.env'))
 
 def whisper_call(
     audio_file: str,

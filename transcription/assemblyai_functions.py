@@ -13,7 +13,7 @@ import openai
 from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO)
-load_dotenv('.env')
+load_dotenv(os.path.join(root_dir, '.env'))
 
 aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
 
@@ -329,7 +329,7 @@ def generate_assemblyai_transcript(
             raise Exception(f"Failed to write transcript to file {output_file_path}: {e}")
 
     return assemblyai_transcript
-
+    
 def replace_assemblyai_speakers(
     assemblyai_transcript: str,
     audio_summary: str,
