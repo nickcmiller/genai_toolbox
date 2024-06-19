@@ -4,6 +4,7 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
 from text_prompting.model_calls import groq_text_response, openai_text_response
+from helper_functions.string_helpers import evaluate_and_clean_valid_response
 
 import logging
 import traceback
@@ -109,81 +110,6 @@ def get_transcript_assemblyai(
         logging.error(f"Failed to generate transcript: {e}")
         raise ValueError(f"Failed to generate transcript due to an error: {e}")
 
-def evaluate_and_validate_response(
-    response: str, 
-    expected_type: type
-) -> dict:
-    """
-        Evaluates and validates the response from the API.
-
-        Args:
-            response (str): The raw string response from the API.
-            expected_type (type): The expected data type of the response after evaluation.
-
-        Returns:
-            dict: The evaluated response as a dictionary if it matches the expected type.
-
-        Raises:
-            SyntaxError: If there is a syntax error when evaluating the response.
-            ValueError: If the evaluated response is not of the expected type.
-            Exception: For any other unexpected errors during evaluation.
-
-        Example:
-            >>> response = "```python\n{'speaker_1': 'John', 'speaker_2': 'Jane'}\n```"
-            >>> result = evaluate_and_validate_response(response, dict)
-            >>> print(result)
-            {'speaker_1': 'John', 'speaker_2': 'Jane'}
-    """
-    try:
-        # Attempt to evaluate the response directly
-        eval_response = eval(response)
-        if isinstance(eval_response, expected_type):
-            logging.info("Response successfully evaluated and validated.")
-            return eval_response
-        else:
-            raise ValueError("Response is not of the expected type.")
-    except SyntaxError as e:
-        logging.error(f"Syntax error during evaluation: {e}")
-        raise
-    except ValueError as e:
-        logging.error(f"Value error: {e}")
-        raise
-    except Exception as e:
-        logging.error(f"Unexpected error during evaluation: {e}")
-        raise
-
-def clean_and_validate_response(
-    response: str, 
-    expected_type: type
-) -> dict:
-    """
-        Cleans and validates the response from the API.
-
-        This function removes any code block markers (e.g., ```python) from the response string,
-        and then passes the cleaned response to the evaluate_and_validate_response function
-        to check if it matches the expected data type.
-
-        Args:
-            response (str): The raw string response from the API.
-            expected_type (type): The expected data type of the response after cleaning and evaluation.
-
-        Returns:
-            dict: The cleaned and validated response as a dictionary if it matches the expected type.
-
-        Raises:
-            SyntaxError: If there is a syntax error when evaluating the cleaned response.
-            ValueError: If the evaluated response is not of the expected type.
-            Exception: For any other unexpected errors during evaluation.
-
-        Example:
-            >>> response = "```python\n{'speaker_1': 'John', 'speaker_2': 'Jane'}\n```"
-            >>> result = clean_and_validate_response(response, dict)
-            >>> print(result)
-            {'speaker_1': 'John', 'speaker_2': 'Jane'}
-    """
-    cleaned_response = re.sub(r'```[\w]+', '', response).replace('```', '').strip()
-    return evaluate_and_validate_response(cleaned_response, expected_type)
-
 def identify_speakers(
     summary: str,
     transcript: str,
@@ -233,8 +159,8 @@ def identify_speakers(
             You only return properly formatted key-value store. 
             The output should Python eval to a dictionary. type(eval(response)) == dict
 
-            Output Examples
-
+            Output Examples:
+            ```
             Example 1:
             {
                 "Speaker A": "FirstName LastName", 
@@ -245,7 +171,8 @@ def identify_speakers(
             {
                 "Speaker A": "FirstName LastName", 
                 "Speaker B": "FirstName LastName"
-                    }
+            }
+            ```
         """ 
 
     max_tries = 5
@@ -255,16 +182,9 @@ def identify_speakers(
         logging.info(f"Attempt {attempt + 1}: Response received.")
 
         try:
-            return evaluate_and_validate_response(response, dict)
+            return evaluate_and_clean_valid_response(response, dict)
         except Exception as e:
             logging.error(f"Attempt {attempt + 1} failed: {e}")
-
-        try:
-            return clean_and_validate_response(response, dict)
-        except Exception as e:
-            logging.error(f"Attempt {attempt + 1} failed after cleaning: {e}")
-
-        logging.info(f"Retrying... ({max_tries - attempt - 1} attempts left)")
 
     logging.error("Failed to obtain a valid dictionary response after maximum attempts.")
     raise ValueError("Failed to obtain a valid dictionary response after maximum attempts.")
@@ -329,7 +249,7 @@ def generate_assemblyai_transcript(
             raise Exception(f"Failed to write transcript to file {output_file_path}: {e}")
 
     return assemblyai_transcript
-    
+
 def replace_assemblyai_speakers(
     assemblyai_transcript: str,
     audio_summary: str,

@@ -201,6 +201,86 @@ def concatenate_list_text_to_list_text(
     
     return concatenated_list
 
+# Validate response types
+def evaluate_valid_response(
+    response: str, 
+    expected_type: type
+) -> dict:
+    """
+        Evaluates and validates the response from the API.
+
+        Args:
+            response (str): The raw string response from the API.
+            expected_type (type): The expected data type of the response after evaluation.
+
+        Returns:
+            dict: The evaluated response as a dictionary if it matches the expected type.
+
+        Raises:
+            SyntaxError: If there is a syntax error when evaluating the response.
+            ValueError: If the evaluated response is not of the expected type.
+            Exception: For any other unexpected errors during evaluation.
+
+        Example:
+            >>> response = "```python\n{'speaker_1': 'John', 'speaker_2': 'Jane'}\n```"
+            >>> result = evaluate_and_validate_response(response, dict)
+            >>> print(result)
+            {'speaker_1': 'John', 'speaker_2': 'Jane'}
+    """
+    try:
+        logging.info(f"Validating that response is {expected_type}")
+        eval_response = eval(response)
+        if isinstance(eval_response, expected_type):
+            logging.info("Response successfully evaluated and validated.")
+            return eval_response
+        else:
+            raise ValueError("Response is not of the expected type.")
+    except SyntaxError as e:
+        logging.error(f"Syntax error during evaluation: {e}")
+        raise
+    except ValueError as e:
+        logging.error(f"Value error: {e}")
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error during evaluation: {e}")
+        raise
+
+def evaluate_and_clean_valid_response(
+    response: str, 
+    expected_type: type
+) -> dict:
+    """
+        Cleans and validates the response from the API.
+
+        This function attempts to evaluate the response directly and validate it against the expected type.
+        If the direct evaluation fails, it tries to clean the response by removing any code block markers
+        (e.g., ```python) and then re-evaluates the cleaned response.
+
+        Args:
+            response (str): The raw string response from the API.
+            expected_type (type): The expected data type of the response after evaluation.
+
+        Returns:
+            dict: The evaluated response as a dictionary if it matches the expected type.
+
+        Raises:
+            ValueError: If the response cannot be evaluated and validated after cleaning.
+
+        Example:
+            >>> response = "```python\n{'speaker_1': 'John', 'speaker_2': 'Jane'}\n```"
+            >>> result = clean_and_validate_response(response, dict)
+            >>> print(result)
+            {'speaker_1': 'John', 'speaker_2': 'Jane'}
+    """
+
+    try:
+        return evaluate_valid_response(response, expected_type)
+    except (SyntaxError, ValueError) as e:
+        logging.error(f"Failed to validate evaluated response: {e}")
+        logging.info(f"Try to clean response and re-evaluate...")
+        cleaned_response = re.sub(r'```[\w]+', '', response).replace('```', '').strip()
+        return evaluate_valid_response(cleaned_response, expected_type)
+
 # Clean string outputs 
 def convert_string_blocks_to_bullet_points(
     text: str, 
