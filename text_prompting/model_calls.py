@@ -184,7 +184,7 @@ def anthropic_text_response(
     model_choices = {
         "opus": "claude-3-opus-20240229",
         "haiku": "claude-3-haiku-20240307",
-        "sonnet": "claude-3-sonnet-20240229",
+        "sonnet": "claude-3-5-sonnet-20240620",
     }
     if model_choice not in model_choices:
         raise ValueError(f"Invalid model_choice. Available options: {list(model_choices.keys())}")
