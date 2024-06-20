@@ -167,7 +167,7 @@ def return_entries_by_date(
 def download_podcast_audio(
     audio_url: str, 
     title: str, 
-    file_path: str=None
+    file_path: Optional[str] = None
 ) -> str:
     """
         Downloads a podcast audio file from a URL and saves it to a file.
@@ -199,14 +199,18 @@ def download_podcast_audio(
     response = requests.get(audio_url)
     
     if response.status_code == 200:
-        with open(file_name, 'wb') as f:
-            f.write(response.content)
         logging.info(f"File downloaded: {title}")
+        try:
+            with open(file_name, 'wb') as f:
+                f.write(response.content)
+            logging.info(f"File written: {file_name}")
+        except Exception as e:
+            logging.error(f"Failed to write file: {e}")
     else:
         logging.error(f"Failed to download the file: {title}")
 
     return file_name
-
+        
 def generate_audio_summary(
     summary: str,
     feed_summary: str
