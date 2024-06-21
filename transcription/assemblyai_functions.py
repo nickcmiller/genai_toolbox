@@ -217,7 +217,7 @@ def replace_speakers(
 
 def generate_assemblyai_transcript(
     audio_file_path: str, 
-    output_file_path: str = None
+    output_dir_name: str = None
 ) -> str:
     """
         Generates a transcript from an audio file using AssemblyAI and optionally writes it to a file.
@@ -239,14 +239,24 @@ def generate_assemblyai_transcript(
         logging.error(f"Failed to transcribe audio: {e}")
         raise Exception(f"Transcription failed for file {audio_file_path}: {e}")
 
-    if output_file_path is not None:
+    if output_dir_name is not None:
+        output_dir_path = os.path.join(os.getcwd(), output_dir_name)
+    
+        if not os.path.exists(output_dir_path):
+            os.makedirs(output_dir_path)
+    
+        raw_title = os.path.splitext(os.path.basename(audio_file_path))[0]
+        safe_title = ''.join(char for char in raw_title if char.isalnum() or char in " -_")
+        title_with_underscores = safe_title.replace(" ", "_")
+        file_path = os.path.join(output_dir_path, title_with_underscores + "_transcript.txt")
+
         try:
-            with open(output_file_path, 'w') as f:
+            with open(file_path, 'w') as f:
                 f.write(assemblyai_transcript)
-            logging.info(f"Transcript successfully written to {output_file_path}")
+            logging.info(f"Transcript successfully written to {file_path}")
         except IOError as e:
-            logging.error(f"Failed to write transcript to file {output_file_path}: {e}")
-            raise Exception(f"Failed to write transcript to file {output_file_path}: {e}")
+            logging.error(f"Failed to write transcript to file {file_path}: {e}")
+            raise Exception(f"Failed to write transcript to file {file_path}: {e}")
 
     return assemblyai_transcript
 
@@ -254,7 +264,8 @@ def replace_assemblyai_speakers(
     assemblyai_transcript: str,
     audio_summary: str,
     first_host_speaker: str = None,
-    output_file_path: str = None
+    output_file_name: str = None,
+    output_dir_name: str = None
 ) -> str:
     """
         Replaces speaker placeholders in the transcript with actual names using a summary and optionally writes the result to a file.
@@ -278,10 +289,17 @@ def replace_assemblyai_speakers(
         speaker_dict = identify_speakers(audio_summary, assemblyai_transcript)
         transcript_with_replaced_speakers = replace_speakers(assemblyai_transcript, speaker_dict)
 
-        if output_file_path:
-            with open(output_file_path, 'w') as f:
+        if output_file_name: 
+            output_dir_path = os.path.join(os.getcwd(), output_dir_name) if output_dir_name else os.getcwd()
+            os.makedirs(output_dir_path, exist_ok=True)
+            
+            safe_title = ''.join(char if char.isalnum() or char in " -_" else '' for char in output_file_name)
+            title_with_underscores = safe_title.replace(" ", "_")
+            file_path = os.path.join(output_dir_path, f"{title_with_underscores}_replaced.txt")
+
+            with open(file_path, 'w') as f:
                 f.write(transcript_with_replaced_speakers)
-            logging.info(f"Transcript successfully written to {output_file_path}")
+            logging.info(f"Transcript successfully written to {file_path}")
 
         return transcript_with_replaced_speakers
     except Exception as e:

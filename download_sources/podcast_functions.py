@@ -167,7 +167,7 @@ def return_entries_by_date(
 def download_podcast_audio(
     audio_url: str, 
     title: str, 
-    file_path: Optional[str] = None
+    download_dir_name: Optional[str] = None
 ) -> str:
     """
         Downloads a podcast audio file from a URL and saves it to a file.
@@ -189,12 +189,16 @@ def download_podcast_audio(
             >>> print(result)
             "/path/to/save/podcast.mp3"
     """
-    if file_path is None:
-        file_path = os.getcwd() + "/"
+    if download_dir_name is None:
+        download_dir_path = os.getcwd()
+    else:
+        download_dir_path = os.path.join(os.getcwd(), download_dir_name)
+        if not os.path.exists(download_dir_path):
+            os.makedirs(download_dir_path)
     
     safe_title = ''.join(char for char in title if char.isalnum() or char in " -_")
     title_with_underscores = safe_title.replace(" ", "_")
-    file_name = os.path.join(file_path, title_with_underscores + ".mp3")
+    file_name = os.path.join(download_dir_path, title_with_underscores + ".mp3")
     
     response = requests.get(audio_url)
     
