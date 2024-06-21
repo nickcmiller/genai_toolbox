@@ -39,43 +39,41 @@ def extract_entry_metadata(
     entry: dict
 ) -> dict:
     """
-        Extracts metadata from an entry in a podcast feed.
-
+        Extracts metadata from an entry in a podcast feed. 
+        This function processes a single entry from a podcast feed, retrieving key information such as the entry ID, title, publication date, summary, and audio URL. 
+        It ensures that all required attributes are present in the entry and handles the extraction of the audio URL from the entry's links.
+        
         Arguments:
             entry: dict - The entry to extract metadata from.
 
         Returns:
             dict - The extracted metadata.
 
-        Example:
-            >>> result = extract_entry_metadata(parse_feed("https://feeds.simplecast.com/3hnxp7yk")[0])
-            >>> print(result)
-            {'entry_id': 'd8029cde-4677-4ac9-bdbc-2f05fba1c1c5', 
-            'title': '#351 The Founder of Rolex: Hans Wilsdorf', 
-            'published': 'Tue, 4 Jun 2024 16:05:59 +0000', 
-            'summary': 'What I learned from reading about Hans Wilsdorf and the founding of Rolex.', 
-            'url': 'https://www.founderspodcast.com/', 
-            'feed_summary': 'Learn from history\'s greatest entrepreneurs...'}
+        Raises:
+            AttributeError: If any required attribute is missing from the entry.
     """
-    entry_id = entry.id
-    title = entry.title
-    published = entry.published
-    summary = entry.summary
-    url = next((link['href'] for link in entry.links if link.rel == 'enclosure'), None)
+    required_attributes = ['id', 'title', 'published', 'summary', 'links']
     
-    return {
-        "entry_id": entry_id,
-        "title": title,
-        "published": published,
-        "summary": summary,
-        "url": url
-    }
+    entry_data = {}
+    for attr in required_attributes:
+        if not hasattr(entry, attr):
+            raise AttributeError(f"Required attribute '{attr}' is missing from the entry")
+        if attr != 'links':
+            entry_data[attr] = getattr(entry, attr)
+    
+    entry_data['url'] = next((link['href'] for link in entry.links if link.get('rel') == 'enclosure'), None)
+    if entry_data['url'] is None:
+        raise AttributeError("No 'enclosure' link found in the entry")
+    
+    return entry_data
 
 def extract_metadata_from_feed(
     feed: feedparser.FeedParserDict
 ) -> List[dict]:
     """
-        Extracts metadata from a podcast feed.
+        Extracts metadata from a podcast feed by processing the entire feed object and iterating through all entries.
+        It collects key details such as entry ID, title, publication date, summary, and audio URL for each episode, as well as a general summary of the entire podcast feed. 
+        The function compiles this information into a structured format for easier programmatic use.
 
         Arguments:
             feed: feedparser.FeedParserDict - The feed object.
@@ -94,12 +92,21 @@ def extract_metadata_from_feed(
             'feed_summary': 'Learn from history\'s greatest entrepreneurs...'}, 
             {...}, {...}]
     """
-    entries = []
+    # List of possible fields for feed summary
+    feed_summary_fields = ["summary", "description", "info", "about"]
     
+    # Get feed summary
+    feed_summary = ""
+    for field in feed_summary_fields:
+        if hasattr(feed.feed, field):
+            feed_summary = getattr(feed.feed, field)
+            break
+    
+    entries = []
     for entry in feed.entries:
         entry_metadata = extract_entry_metadata(entry)
-        entry_metadata["feed_summary"] = feed.feed.summary
-        entries.append(entry_metadata)
+        entry_metadata["feed_summary"] = feed_summary
+        entries.append(entry_metadata)    
     
     return entries
 
@@ -220,7 +227,7 @@ def generate_audio_summary(
     feed_summary: str
 ) -> str:
     summary_prompt = f"""
-        Description of the podcast:\n {feed_summary} \n\n
+        Description of the podcast feed:\n {feed_summary} \n\n
         
         Description of this specific podcast episode:\n {summary} \n
 
@@ -235,12 +242,7 @@ def generate_audio_summary(
     return response
 
 if __name__ == "__main__":
-    result = return_entries_by_date(
-        feed_url="https://feeds.megaphone.fm/HS2300184645",
-        start_date_str="June 7"
-    )
-   
-    for entry in result:
-        print("---")
-        print(entry['title'])
-        print(entry['published'])
+    mfm_feed_url = "https://feeds.megaphone.fm/HS2300184645"
+    dithering_feed_url = "https://dithering.passport.online/feed/podcast/KCHirQXM6YBNd6xFa1KkNJ"
+    entries = return_all_entries_from_feed(dithering_feed_url)
+    print(json.dumps(entries[0], indent=4))
