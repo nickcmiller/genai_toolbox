@@ -222,7 +222,7 @@ def download_podcast_audio(
 
     return file_name
         
-def generate_audio_summary(
+def generate_episode_summary(
     summary: str,
     feed_summary: str
 ) -> str:

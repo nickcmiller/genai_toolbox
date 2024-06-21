@@ -80,7 +80,7 @@ def get_transcript_assemblyai(
     response: aai.transcriber.Transcript
 ) -> str:
     """
-        Extracts and formats the transcript from the AssemblyAI transcription response.
+        Extracts and formats a text transcript from the AssemblyAI transcription response.
 
         Args:
             response (aai.transcriber.Transcript): The transcription response object from AssemblyAI.
@@ -191,22 +191,22 @@ def identify_speakers(
 
 def replace_speakers(
     transcript: str, 
-    response_dict: dict
+    speaker_dict: dict
 ) -> str:
     """
         Replaces placeholders in the transcript with actual speaker names from the response dictionary.
 
         Args:
             transcript (str): The original transcript text containing placeholders.
-            response_dict (dict): A dictionary mapping placeholders to speaker names.
+            speaker_dict (dict): A dictionary mapping placeholders to speaker names.
 
         Returns:
             str: The transcript with placeholders replaced by speaker names.
 
         Raises:
-            ValueError: If a key or value in response_dict is not a string.
+            ValueError: If a key or value in speaker_dict is not a string.
     """
-    for key, value in response_dict.items():
+    for key, value in speaker_dict.items():
         if not isinstance(key, str) or not isinstance(value, str):
             logging.error(f"Key or value is not a string: key={key}, value={value}")
             raise ValueError(f"Key or value is not a string: key={key}, value={value}")
@@ -233,8 +233,8 @@ def generate_assemblyai_transcript(
             Exception: If transcription or file writing fails.
     """
     try:
-        transcribed_audio = transcribe_audio_assemblyai(audio_file_path)
-        assemblyai_transcript = get_transcript_assemblyai(transcribed_audio)
+        transcribed_audio_dict = transcribe_audio_assemblyai(audio_file_path)
+        assemblyai_transcript = get_transcript_assemblyai(transcribed_audio_dict)
     except Exception as e:
         logging.error(f"Failed to transcribe audio: {e}")
         raise Exception(f"Transcription failed for file {audio_file_path}: {e}")
