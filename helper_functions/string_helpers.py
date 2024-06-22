@@ -5,36 +5,44 @@ from pathlib import Path
 import logging
 import traceback
 
-from typing import List, Optional
+from typing import List, Optional, Union
 import mimetypes
 
 logging.basicConfig(level=logging.INFO)
 
-def retrieve_string_from_file(
-    file_path: str
-) -> Optional[str]:
+def retrieve_file(
+    file: str,
+    dir_name: str = None
+) -> Optional[Union[str, dict, list]]:
     """
-        Retrieves the text content from a .txt or .md file.
+    Retrieves the content from a file saved using write_to_file.
 
-        Args:
-            file_path (str): The path to the file.
+    Args:
+        file (str): The name or path of the file.
+        dir_name (str, optional): The directory name where the file is located.
 
-        Returns:
-            Optional[str]: The text content of the file, or None if there was an error.
+    Returns:
+        Optional[Union[str, dict, list]]: The content of the file, or None if there was an error.
 
-        Raises:
-            ValueError: If the file is not a text or markdown file.
-            IOError: If there is an error opening or reading the file.
+    Raises:
+        IOError: If there is an error opening or reading the file.
     """
     try:
-        if mimetypes.guess_type(file_path)[0] not in ['text/plain', 'text/markdown']:
-            raise ValueError(f"File {file_path} is not a text or markdown file.")
-        
-        with open(file_path, 'r', encoding='utf-8') as file:
-            text = file.read()
-            return text
-    except (IOError, ValueError) as e:
-        logging.error(f"retrieve_text_from_file failed to read file {file_path}: {e}")
+        if dir_name:
+            full_path = os.path.join(dir_name, file)
+        elif os.path.dirname(file):
+            full_path = file
+        else:
+            full_path = os.path.join(os.getcwd(), file) 
+
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()            
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return content
+    except IOError as e:
+        logging.error(f"retrieve_file failed to read file {full_path}: {e}")
         logging.error(traceback.format_exc())
         return None
 
