@@ -1,5 +1,7 @@
 import re
 import os
+import json
+from pathlib import Path
 import logging
 import traceback
 
@@ -36,39 +38,58 @@ def retrieve_string_from_file(
         logging.error(traceback.format_exc())
         return None
 
-def write_string_to_file(
-    file_path: str,
-    text: str,
+def write_to_file(
+    content: str | dict | list, 
+    file: str,
     mode: str = 'w',
-    encoding: str = 'utf-8'
-) -> None:
+    encoding: str = 'utf-8',
+    output_dir_name: str = None
+) -> Path:
     """
-        Writes a given text to a specified file. If the file path does not specify a directory,
-        the file will be created in the current working directory.
+    Writes content to a file.
 
-        Args:
-            file_path (str): The path to the file where the text will be written.
-            text (str): The text to write to the file.
-            mode (str): The mode in which the file is opened, default is 'w' (write mode).
-            encoding (str): The encoding to use for the file, default is 'utf-8'.
+    Args:
+        content (str | dict | list): The content to write to the file. Can be a string, a dictionary, or a list.
+        file (str): The name of the file to write to.
+        mode (str, optional): The mode to open the file in. Defaults to 'w'.
+        encoding (str, optional): The encoding to use when writing the file. Defaults to 'utf-8'.
+        output_dir_name (str, optional): The name of the output directory. If provided, the file will be created in this directory.
 
-        Raises:
-            ValueError: If the file_path or text is not a string.
-            IOError: If an error occurs during file writing.
+    Returns:
+        Path: The path to the written file.
+
+    Raises:
+        ValueError: If the file argument is not a string or if the content is not a string, dictionary, or list.
+        IOError: If there is an error writing to the file.
     """
-    if not isinstance(file_path, str) or not isinstance(text, str):
-        raise ValueError("file_path and text must be strings.")
+    if not isinstance(file, str):
+        raise ValueError("file must be a string.")
+    if not isinstance(content, (str, dict, list)):
+        raise ValueError("content must be a string, a dictionary, or a list.")
 
-    # Ensure the directory exists or use the current working directory
-    directory = os.path.dirname(file_path)
-    if not directory:
-        file_path = os.path.join(os.getcwd(), file_path)
-    elif not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
+    # Determine the directory and create it if it doesn't exist
+    if output_dir_name:
+        directory = Path(os.getcwd()) / output_dir_name
+    else:
+        directory = Path(os.path.dirname(file) or os.getcwd())
+    directory.mkdir(parents=True, exist_ok=True)
+
+    # Create the full file path
+    if output_dir_name:
+        safe_title = ''.join(char if char.isalnum() or char in " -_" else '_' for char in Path(file).stem)
+        extension = Path(file).suffix or '.txt'
+        file_path = directory / f"{safe_title}{extension}"
+    else:
+        file_path = directory / Path(file).name
 
     try:
-        with open(file_path, mode, encoding=encoding) as file:
-            file.write(text)
+        with open(file_path, mode, encoding=encoding) as f:
+            if isinstance(content, dict) or isinstance(content, list):
+                json.dump(content, f, indent=4)
+            else:
+                f.write(content)
+        logging.info(f"Successfully written to {file_path}")
+        return file_path
     except IOError as e:
         logging.error(f"Failed to write to file {file_path}: {e}")
         raise

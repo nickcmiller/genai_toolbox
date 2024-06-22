@@ -244,5 +244,5 @@ def generate_episode_summary(
 if __name__ == "__main__":
     mfm_feed_url = "https://feeds.megaphone.fm/HS2300184645"
     dithering_feed_url = "https://dithering.passport.online/feed/podcast/KCHirQXM6YBNd6xFa1KkNJ"
-    entries = return_all_entries_from_feed(dithering_feed_url)
+    entries = return_all_entries_from_feed(mfm_feed_url)
     print(json.dumps(entries[0], indent=4))

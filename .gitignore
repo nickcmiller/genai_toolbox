@@ -2,6 +2,13 @@
 *.mp3
 *.mp4
 *.json
+
+# Ignore all .txt files except those ending with requirements.txt
+*.txt
+!*requirements.txt
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
