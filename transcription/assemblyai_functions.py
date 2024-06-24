@@ -4,7 +4,7 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
 from text_prompting.model_calls import groq_text_response, openai_text_response
-from helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file
+from helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file, retrieve_file
 
 import assemblyai as aai
 import openai
@@ -113,19 +113,61 @@ def create_text_transcript(
         raise ValueError(f"Failed to generate transcript due to an error: {e}")
 
 def create_utterance_json(
-    transcriber_transcript: aai.transcriber.Transcript
+    transcriber_transcript: aai.transcriber.Transcript,
+    fields_to_exclude: list[str] = None
 ) -> list:
-    utterances = []
-    for utterance in transcriber_transcript.utterances:
-        utterances.append({
+    """
+        Creates a JSON representation of utterances from an AssemblyAI transcript.
+
+        This function takes an AssemblyAI transcript object and converts its utterances into a list of 
+        dictionaries, each representing an utterance with selected fields. It allows for the exclusion 
+        of specific fields from the output.
+
+        Args:
+            transcriber_transcript (aai.transcriber.Transcript): The AssemblyAI transcript object 
+                containing utterances.
+            fields_to_exclude (list[str], optional): A list of field names to exclude from the output. 
+                Defaults to None.
+
+        Returns:
+            list: A list of dictionaries, where each dictionary represents an utterance with the 
+            following keys (unless excluded):
+                - confidence: The confidence score of the utterance.
+                - end: The end time of the utterance.
+                - speaker: The speaker label.
+                - start: The start time of the utterance.
+                - text: The transcribed text of the utterance.
+                - words: A list of word objects in the utterance.
+
+        Raises:
+            ValueError: If the transcriber_transcript is invalid or missing the 'utterances' attribute.
+
+        Example:
+            >>> transcript = aai.transcriber.Transcript(...)
+            >>> utterances_json = create_utterance_json(transcript, fields_to_exclude=['words'])
+            >>> print(utterances_json[0])
+            {
+                'confidence': 0.95,
+                'end': 3500,
+                'speaker': 'A',
+                'start': 0,
+                'text': 'Hello, how are you?',
+            }
+    """
+    fields_to_exclude = set(fields_to_exclude or [])
+    
+    def filter_utterance(utterance):
+        base_dict = {
             "confidence": utterance.confidence,
             "end": utterance.end,
             "speaker": utterance.speaker,
             "start": utterance.start,
             "text": utterance.text,
             "words": [word.__dict__ for word in utterance.words]
-        })
-    return utterances
+        }
+        return {k: v for k, v in base_dict.items() if k not in fields_to_exclude}
+
+    return [filter_utterance(utterance) for utterance in transcriber_transcript.utterances]
 
 def identify_speakers(
     summary: str,
@@ -326,7 +368,6 @@ def generate_assemblyai_transcript(
 def replace_speakers_in_assemblyai_transcript(
     assemblyai_transcript: str,
     audio_summary: str,
-    first_host_speaker: str = None,
     output_file_name: str = None,
     output_dir_name: str = None
 ) -> str:
@@ -336,7 +377,6 @@ def replace_speakers_in_assemblyai_transcript(
         Args:
             assemblyai_transcript (str): The transcript text with speaker placeholders.
             audio_summary (str): A summary of the audio content used to identify speakers.
-            first_host_speaker (str, optional): The name of the first host to speak, if known.
             output_file_path (str, optional): The path to the output file where the modified transcript will be saved. If None, the transcript is not written to a file.
 
         Returns:
@@ -346,9 +386,6 @@ def replace_speakers_in_assemblyai_transcript(
             Exception: If an error occurs during the processing.
     """
     try:
-        if first_host_speaker:
-            audio_summary += f"\n\nThe first host to speak is {first_host_speaker}"
-        
         speaker_dict = identify_speakers(audio_summary, assemblyai_transcript)
         transcript_with_replaced_speakers = replace_speakers_in_transcript(assemblyai_transcript, speaker_dict)
 
@@ -367,74 +404,79 @@ def replace_speakers_in_assemblyai_transcript(
 
 def generate_assemblyai_utterances(
     audio_file_path: str,
-    output_dir_name: str = None
+    output_dir_name: str = None,
+    fields_to_exclude: list[str] = ['words']
 ) -> list[dict]:
     """
-    Generates utterances from an audio file using AssemblyAI transcription service.
+        Generates utterances from an audio file using AssemblyAI transcription service.
 
-    This function transcribes the given audio file, creates utterance JSON from the transcription,
-    and optionally saves the utterances to a JSON file.
+        This function transcribes the given audio file, creates utterance JSON from the transcription,
+        and optionally saves the utterances to a JSON file.
 
-    Args:
-        audio_file_path (str): The path to the audio file to be transcribed.
-        output_dir_name (str, optional): The name of the directory to save the utterances JSON file.
-            If None, the utterances are not saved to a file.
+        Args:
+            audio_file_path (str): The path to the audio file to be transcribed.
+            output_dir_name (str, optional): The name of the directory to save the utterances JSON file.
+                If None, the utterances are not saved to a file.
 
-    Returns:
-        list[dict]: A list of dictionaries, where each dictionary represents an utterance
-        with keys such as 'confidence', 'end', 'speaker', 'start', 'text', and 'words'.
+        Returns:
+            list[dict]: A list of dictionaries, where each dictionary represents an utterance
+            with keys such as 'confidence', 'end', 'speaker', 'start', 'text', and 'words'.
 
-    Raises:
-        Exception: If an error occurs during transcription or utterance generation.
+        Raises:
+            Exception: If an error occurs during transcription or utterance generation.
 
-    Note:
-        This function relies on the `transcribe_audio` and `create_utterance_json` functions,
-        which should be defined elsewhere in the module.
+        Note:
+            This function relies on the `transcribe_audio` and `create_utterance_json` functions,
+            which should be defined elsewhere in the module.
     """
 
     transcribed_audio_dict = transcribe_audio(audio_file_path)
-    transcribed_utterances = create_utterance_json(transcribed_audio_dict)
-    transcript = create_text_transcript(transcribed_audio_dict)
+
+    output_dict = {
+        "extracted_title": Path(audio_file_path).stem,
+        "transcribed_utterances": create_utterance_json(transcribed_audio_dict, fields_to_exclude=fields_to_exclude), 
+        "transcript": create_text_transcript(transcribed_audio_dict)
+    }
 
     if output_dir_name:
-        raw_title = Path(audio_file_path).stem
-        file_name = f"{raw_title}_utterances.json"
-        
+        file_name = f"{output_dict['extracted_title']}_utterances.json"
         file_path = write_to_file(
-            content=transcribed_utterances,
+            content=output_dict,
             file=file_name,
             output_dir_name=output_dir_name
         )
-        logging.info(f"Transcribed utterances successfully written to {file_path}")
 
-    return [
-        {
-            "transcribed_utterances": transcribed_utterances, 
-            "transcript": transcript
-        }
-    ]
+    return output_dict
 
 def replace_speakers_in_assemblyai_utterances(
-    transcribed_utterances: list[dict],
+    transcribed_utterances: dict,
     audio_summary: str,
-    first_host_speaker: str = None,
-    output_file_name: str = None,
     output_dir_name: str = None
-) -> list[dict]:
+) -> dict:
     speaker_dict = identify_speakers(audio_summary, transcribed_utterances['transcript'])
     replaced_utterances = replace_speakers_in_utterances(
         transcribed_utterances['transcribed_utterances'], 
         speaker_dict
     )
+    replaced_transcript = replace_speakers_in_transcript(
+        transcribed_utterances['transcript'],
+        speaker_dict
+    )
 
-    
+    output_dict = {
+        "extracted_title": transcribed_utterances['extracted_title'],
+        "transcribed_utterances": replaced_utterances, 
+        "transcript": replaced_transcript
+    }
 
-    return [
-        {
-            "transcribed_utterances": replaced_utterances, 
-            "transcript": transcribed_utterances['transcript']
-        }
-    ]
+    if output_dir_name:
+        file_path = write_to_file(
+            content=output_dict,
+            file=f"{transcribed_utterances['extracted_title']}_replaced.json",
+            output_dir_name=output_dir_name
+        )
+
+    return output_dict
 
     
 
@@ -449,51 +491,33 @@ if __name__ == "__main__":
     audio_file_path = download_podcast_audio(first_entry["url"], first_entry["title"])
 
     if False:
-        
-        transcribed_audio_dict = transcribe_audio_assemblyai(audio_file_path)
-        full_transcript = create_text_transcript_assemblyai(transcribed_audio_dict)
-        transcribed_utterances = create_utterance_json(transcribed_audio_dict)
-        with open('transcribed_utterances.json', 'w') as f:
-            f.write(json.dumps(transcribed_utterances, indent=4))
-        with open('full_transcript.txt', 'w') as f:
-            f.write(full_transcript)
-    else:
-        with open('transcribed_utterances.json', 'r') as f:
-            transcribed_utterances = json.load(f)
-        with open('full_transcript.txt', 'r') as f:
-            full_transcript = f.read()
-
-    filtered_utterances = [
-        {k: v for k, v in utterance.items() if k != 'words' and k != 'confidence'}
-        for utterance in transcribed_utterances
-    ]
-    if False:
-        episode_summary = generate_episode_summary(first_entry["summary"], first_entry["feed_summary"])
-        speakers = identify_speakers(episode_summary, full_transcript)
-        with open('speakers.json', 'w') as f:
-            f.write(json.dumps(speakers, indent=4))
-    else:
-        with open('speakers.json', 'r') as f:
-            speakers = json.load(f)
-
-
-    # for utterance in filtered_utterances:
-    #     full_speaker = "Speaker " + utterance['speaker']
-    #     if full_speaker in speakers:
-    #         utterance["speaker"] = speakers[full_speaker]
-
-    if False:
-        new_utterances = replace_speakers_in_utterances(filtered_utterances, speakers)
-        write_to_file(
-            content=new_utterances,
-            file="new_utterances.json",
+        transcribed_utterances_dict = generate_assemblyai_utterances(
+            audio_file_path, 
             output_dir_name="tmp"
-        )   
+        )
     else:
-        with open('tmp/new_utterances.json', 'r') as f:
-            new_utterances = json.load(f)
-    
-    print(json.dumps(new_utterances[:5], indent=4))
-    
+        extracted_title = Path(audio_file_path).stem
+        file_name = f"{extracted_title}_utterances.json"
+        transcribed_utterances_dict = retrieve_file(
+            file=file_name,
+            dir_name="tmp"
+        )
+
+    print(type(transcribed_utterances_dict))
+
+    if True:
+        episode_summary = generate_episode_summary(first_entry["summary"], first_entry["feed_summary"])
+        replaced_utterances_dict = replace_speakers_in_assemblyai_utterances(
+            transcribed_utterances_dict, 
+            episode_summary, 
+            output_dir_name="tmp"
+        )
+    else:
+        replaced_utterances_dict = retrieve_file(
+            file=f"{transcribed_utterances_dict['extracted_title']}_replaced.json",
+            dir_name="tmp"
+        )
+
+    print(json.dumps(replaced_utterances_dict, indent=4))
 
         
