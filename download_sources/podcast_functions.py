@@ -101,11 +101,14 @@ def extract_metadata_from_feed(
         if hasattr(feed.feed, field):
             feed_summary = getattr(feed.feed, field)
             break
+
+    feed_title = feed.feed.title
     
     entries = []
     for entry in feed.entries:
         entry_metadata = extract_entry_metadata(entry)
         entry_metadata["feed_summary"] = feed_summary
+        entry_metadata["feed_title"] = feed_title
         entries.append(entry_metadata)    
     
     return entries
@@ -244,5 +247,5 @@ def generate_episode_summary(
 if __name__ == "__main__":
     mfm_feed_url = "https://feeds.megaphone.fm/HS2300184645"
     dithering_feed_url = "https://dithering.passport.online/feed/podcast/KCHirQXM6YBNd6xFa1KkNJ"
-    entries = return_all_entries_from_feed(mfm_feed_url)
+    entries = return_all_entries_from_feed(dithering_feed_url)
     print(json.dumps(entries[0], indent=4))

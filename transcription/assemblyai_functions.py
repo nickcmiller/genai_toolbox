@@ -14,6 +14,7 @@ from typing import List, Dict
 import logging
 import traceback
 import re
+import copy
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
@@ -367,12 +368,16 @@ def replace_speakers_in_utterances(
                 {"speaker": "Jane", "text": "Hi there", ...}
         ]
     """
+    new_utterances = []
     for utterance in utterances:
-        full_speaker = "Speaker " + utterance['speaker']
+        new_utterance = copy.deepcopy(utterance)
+        full_speaker = "Speaker " + new_utterance['speaker']
         if full_speaker in speaker_dict:
-            utterance["speaker"] = speaker_dict[full_speaker]
+            new_utterance["speaker"] = speaker_dict[full_speaker]
+        new_utterances.append(new_utterance)
 
-    return utterances
+    return new_utterances
+
 
 def replace_speakers_in_assemblyai_utterances(
     transcribed_utterances: dict,
@@ -427,39 +432,38 @@ if __name__ == "__main__":
     entries = return_all_entries_from_feed(dithering_feed_url)
     first_entry = entries[0]
     audio_file_path = download_podcast_audio(first_entry["url"], first_entry["title"])
-    # episode_summary = generate_episode_summary(first_entry["summary"], first_entry["feed_summary"])
+    # 
 
-    transcript = generate_assemblyai_transcript(audio_file_path, output_dir_name="tmp_transcript")
-    print(transcript)
+    if False:
+        transcribed_utterances_dict = generate_assemblyai_utterances(
+            audio_file_path, 
+            output_dir_name="tmp"
+        )
+    else:
+        extracted_title = Path(audio_file_path).stem
+        file_name = f"{extracted_title}_utterances.json"
+        transcribed_utterances_dict = retrieve_file(
+            file=file_name,
+            dir_name="tmp"
+        )
 
-    # if False:
-    #     transcribed_utterances_dict = generate_assemblyai_utterances(
-    #         audio_file_path, 
-    #         output_dir_name="tmp"
-    #     )
-    # else:
-    #     extracted_title = Path(audio_file_path).stem
-    #     file_name = f"{extracted_title}_utterances.json"
-    #     transcribed_utterances_dict = retrieve_file(
-    #         file=file_name,
-    #         dir_name="tmp"
-    #     )
+    print(transcribed_utterances_dict['transcribed_utterances'][0])
+    print(type(transcribed_utterances_dict))
 
-    # print(type(transcribed_utterances_dict))
+    if True:
+        episode_summary = generate_episode_summary(first_entry["summary"], first_entry["feed_summary"])
+        replaced_utterances_dict = replace_speakers_in_assemblyai_utterances(
+            transcribed_utterances_dict, 
+            episode_summary, 
+            output_dir_name="tmp"
+        )
+    else:
+        replaced_utterances_dict = retrieve_file(
+            file=f"{transcribed_utterances_dict['extracted_title']}_replaced.json",
+            dir_name="tmp"
+        )
 
-    # if True:
-    #     
-    #     replaced_utterances_dict = replace_speakers_in_assemblyai_utterances(
-    #         transcribed_utterances_dict, 
-    #         episode_summary, 
-    #         output_dir_name="tmp"
-    #     )
-    # else:
-    #     replaced_utterances_dict = retrieve_file(
-    #         file=f"{transcribed_utterances_dict['extracted_title']}_replaced.json",
-    #         dir_name="tmp"
-    #     )
-
+    print(transcribed_utterances_dict['transcribed_utterances'][0])
     # print(json.dumps(replaced_utterances_dict, indent=4))
 
         
