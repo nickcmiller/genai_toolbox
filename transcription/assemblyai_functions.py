@@ -427,9 +427,9 @@ if __name__ == "__main__":
     entries = return_all_entries_from_feed(dithering_feed_url)
     first_entry = entries[0]
     audio_file_path = download_podcast_audio(first_entry["url"], first_entry["title"])
-    episode_summary = generate_episode_summary(first_entry["summary"], first_entry["feed_summary"])
+    # episode_summary = generate_episode_summary(first_entry["summary"], first_entry["feed_summary"])
 
-    transcript = generate_assemblyai_transcript_with_speakers(audio_file_path, episode_summary, output_dir_name="tmp_transcript")
+    transcript = generate_assemblyai_transcript(audio_file_path, output_dir_name="tmp_transcript")
     print(transcript)
 
     # if False:
