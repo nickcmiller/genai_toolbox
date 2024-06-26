@@ -248,4 +248,7 @@ if __name__ == "__main__":
     mfm_feed_url = "https://feeds.megaphone.fm/HS2300184645"
     dithering_feed_url = "https://dithering.passport.online/feed/podcast/KCHirQXM6YBNd6xFa1KkNJ"
     entries = return_all_entries_from_feed(dithering_feed_url)
-    print(json.dumps(entries[0], indent=4))
+    test_feed = return_entries_by_date(feed_url=dithering_feed_url, start_date_str="2024-06-17", end_date_str="2024-06-19")
+    
+    print(json.dumps(test_feed, indent=4))
+    print(json.dumps(entries[:3], indent=4))
