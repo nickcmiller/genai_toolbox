@@ -264,21 +264,61 @@ def format_speakers_in_utterances(
                 {'speakers': ['Alice', 'Bob'], 'text': 'Nice to meet you.'}
             ]
     """
-    formatted_utterances = []
-    for utterance in utterances:
-        speakers = utterance['speakers']
-        text = utterance['text']
-        
+    def format_text(
+        text: str, 
+        speakers: list[str]
+    ) -> str:
         if '{}' in text:
-            # Format the text if placeholders are present
-            formatted_text = text.format(*speakers)
-        else:
-            # Keep the text as is if no placeholders
-            formatted_text = text
+            return text.format(*speakers)
+        return text
+
+    return [
+        {**utterance, "text": format_text(utterance['text'], utterance['speakers'])}
+        for utterance in utterances
+    ]
+
+def milliseconds_to_minutes_in_utterances(
+    utterances: list[dict]
+) -> list[dict]:
+    """
+    Converts millisecond timestamps to minutes and seconds format in utterances.
+
+    This function takes a list of utterance dictionaries, each containing 'start' and 'end'
+    keys with millisecond values, and converts these timestamps to a 'minutes:seconds' format.
+    The original 'start' and 'end' keys are replaced with 'start_time' and 'end_time' respectively.
+
+    Args:
+        utterances (list[dict]): A list of dictionaries, each representing an utterance.
+            Each dictionary should contain 'start' and 'end' keys with millisecond values.
+
+    Returns:
+        list[dict]: A new list of dictionaries with the same structure as the input,
+        but with 'start' and 'end' replaced by 'start_time' and 'end_time' in 'minutes:seconds' format.
+
+    Example:
+        Input:
+        [
+            {'speakers': ['John'], 'text': 'Hello!', 'start': 1000, 'end': 2000},
+            {'speakers': ['Alice'], 'text': 'Hi there!', 'start': 2500, 'end': 3500}
+        ]
         
-        formatted_utterances.append({
-            **{k: v for k, v in utterance.items() if k != 'text'},
-            "text": formatted_text
-        })
-    
-    return formatted_utterances
+        Output:
+        [
+            {'speakers': ['John'], 'text': 'Hello!', 'start_time': '0:01', 'end_time': '0:02'},
+            {'speakers': ['Alice'], 'text': 'Hi there!', 'start_time': '0:02', 'end_time': '0:03'}
+        ]
+    """
+    def ms_to_min_sec(ms: int) -> str:
+        total_seconds = ms // 1000
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        return f"{minutes}:{seconds:02d}"
+
+    return [
+        {
+            **{k: v for k, v in utterance.items() if k not in ['start', 'end']},
+            "start_time": ms_to_min_sec(utterance['start']),
+            "end_time": ms_to_min_sec(utterance['end'])
+        }
+        for utterance in utterances
+    ]

@@ -6,6 +6,31 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
+def convert_date_format(
+    date_string: str
+) -> str:
+    """
+        Converts a date string from one format to another.
+
+        This function takes a date string in the format "Day, DD Mon YYYY HH:MM:SS +ZZZZ"
+        and converts it to the format "Month DD, YYYY".
+
+        Args:
+            date_string (str): The input date string in the format "Day, DD Mon YYYY HH:MM:SS +ZZZZ".
+
+        Returns:
+            str: The formatted date string in the format "Month DD, YYYY".
+
+        Raises:
+            ValueError: If the input date string is not in the expected format.
+
+        Example:
+            >>> convert_date_format("Tue, 18 Jun 2024 09:00:36 +0000")
+            "June 18, 2024"
+    """
+    dt = datetime.strptime(date_string, "%a, %d %b %Y %H:%M:%S %z")
+    return dt.strftime("%B %d, %Y")
+
 def get_date_with_timezone(
     date_str: str, 
     timezone_str: str = 'UTC'
