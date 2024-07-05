@@ -243,6 +243,8 @@ def format_speakers_in_utterances(
         it replaces them with the corresponding speaker names. If no placeholders are
         present, the text is left unchanged.
 
+        If speakers appear more than once in utterance['speakers'], the duplicates are removed.
+
         Args:
             utterances (list[dict]): A list of dictionaries, each representing an utterance.
                 Each dictionary should contain 'speakers' and 'text' keys.
@@ -273,7 +275,11 @@ def format_speakers_in_utterances(
         return text
 
     return [
-        {**utterance, "text": format_text(utterance['text'], utterance['speakers'])}
+        {
+            **{k: v for k, v in utterance.items() if k != 'speakers'},
+            "text": format_text(utterance['text'], utterance['speakers']),
+            "speakers": list(dict.fromkeys(utterance['speakers']))  # Remove duplicates
+        }
         for utterance in utterances
     ]
 
@@ -281,11 +287,11 @@ def milliseconds_to_minutes_in_utterances(
     utterances: list[dict]
 ) -> list[dict]:
     """
-    Converts millisecond timestamps to minutes and seconds format in utterances.
+    Adds minutes and seconds format timestamps to utterances while keeping millisecond values.
 
     This function takes a list of utterance dictionaries, each containing 'start' and 'end'
-    keys with millisecond values, and converts these timestamps to a 'minutes:seconds' format.
-    The original 'start' and 'end' keys are replaced with 'start_time' and 'end_time' respectively.
+    keys with millisecond values, and adds new 'start_time' and 'end_time' keys with
+    'minutes:seconds' format. The original 'start' and 'end' keys are retained.
 
     Args:
         utterances (list[dict]): A list of dictionaries, each representing an utterance.
@@ -293,7 +299,7 @@ def milliseconds_to_minutes_in_utterances(
 
     Returns:
         list[dict]: A new list of dictionaries with the same structure as the input,
-        but with 'start' and 'end' replaced by 'start_time' and 'end_time' in 'minutes:seconds' format.
+        but with additional 'start_time' and 'end_time' keys in 'minutes:seconds' format.
 
     Example:
         Input:
@@ -304,8 +310,8 @@ def milliseconds_to_minutes_in_utterances(
         
         Output:
         [
-            {'speakers': ['John'], 'text': 'Hello!', 'start_time': '0:01', 'end_time': '0:02'},
-            {'speakers': ['Alice'], 'text': 'Hi there!', 'start_time': '0:02', 'end_time': '0:03'}
+            {'speakers': ['John'], 'text': 'Hello!', 'start': 1000, 'end': 2000, 'start_time': '0:01', 'end_time': '0:02'},
+            {'speakers': ['Alice'], 'text': 'Hi there!', 'start': 2500, 'end': 3500, 'start_time': '0:02', 'end_time': '0:03'}
         ]
     """
     def ms_to_min_sec(ms: int) -> str:
@@ -316,7 +322,7 @@ def milliseconds_to_minutes_in_utterances(
 
     return [
         {
-            **{k: v for k, v in utterance.items() if k not in ['start', 'end']},
+            **utterance,
             "start_time": ms_to_min_sec(utterance['start']),
             "end_time": ms_to_min_sec(utterance['end'])
         }
