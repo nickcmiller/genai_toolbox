@@ -323,8 +323,45 @@ def milliseconds_to_minutes_in_utterances(
     return [
         {
             **utterance,
-            "start_time": ms_to_min_sec(utterance['start']),
-            "end_time": ms_to_min_sec(utterance['end'])
+            "start_mins": ms_to_min_sec(utterance['start']),
+            "end_mins": ms_to_min_sec(utterance['end'])
         }
         for utterance in utterances
     ]
+
+def rename_start_end_to_ms(
+    utterances: list[dict]
+) -> list[dict]:
+    """
+    Renames 'start' to 'start_ms' and 'end' to 'end_ms' in each utterance dictionary.
+
+    Args:
+        utterances (list[dict]): A list of dictionaries, each representing an utterance.
+            Each dictionary should contain 'start' and 'end' keys.
+
+    Returns:
+        list[dict]: A new list of dictionaries with 'start' renamed to 'start_ms' and
+        'end' renamed to 'end_ms'.
+
+    Example:
+        Input:
+        [
+            {'speakers': ['John'], 'text': 'Hello!', 'start': 1000, 'end': 2000},
+            {'speakers': ['Alice'], 'text': 'Hi there!', 'start': 2500, 'end': 3500}
+        ]
+        
+        Output:
+        [
+            {'speakers': ['John'], 'text': 'Hello!', 'start_ms': 1000, 'end_ms': 2000},
+            {'speakers': ['Alice'], 'text': 'Hi there!', 'start_ms': 2500, 'end_ms': 3500}
+        ]
+    """
+    return [
+        {
+            **{k: v for k, v in utterance.items() if k not in ['start', 'end']},
+            'start_ms': utterance['start'],
+            'end_ms': utterance['end']
+        }
+        for utterance in utterances
+    ]
+
