@@ -3,11 +3,10 @@ import sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
-from chunk_and_embed.embedding_functions import create_openai_embedding
-from chunk_and_embed.embedding_functions import query_chunks_with_embeddings
+from chunk_and_embed.embedding_functions import create_openai_embedding, find_similar_chunks
 from text_prompting.model_calls import openai_text_response
 
-from typing import Callable
+from typing import Callable, List, Dict
 import string
 from string import Template
 
@@ -19,40 +18,28 @@ Give a detailed answer.
 """
 
 def llm_response_with_query(
-    chunks_with_embeddings: list[dict],
+    similar_chunks: List[Dict[str, Any]],
     question: str,
     llm_system_prompt: str = llm_system_prompt_default,
     source_template: str = "Title: '{title}',\nText: '{text}'\n",
     template_args: dict = {"title": "title", "text": "text"},
-    embedding_function: Callable = create_openai_embedding,
-    query_model: str = "text-embedding-3-large",
-    threshold: float = 0.4,
-    max_query_chunks: int = 3,
     llm_function: Callable = openai_text_response,
     llm_model_choice: str = "4o",
-) -> dict:
-    query_response = query_chunks_with_embeddings(
-        query=question, 
-        chunks_with_embeddings=chunks_with_embeddings,
-        embedding_function=embedding_function, 
-        model_choice=query_model, 
-        threshold=threshold,
-        max_returned_chunks=max_query_chunks
-    )
+) -> Dict[str, Any]:
 
-    if len(query_response) == 0:
+    if len(similar_chunks) == 0:
         return "Sources are not relevant enough to answer this question"
 
     # Check that query_response chunks contain 'title' and 'text'
-    for chunk in query_response:
+    for chunk in similar_chunks:
         if 'title' not in chunk or 'text' not in chunk:
             raise ValueError("Each chunk in query_response must contain 'title' and 'text' keys")
 
     sources = ""
-    for chunk in query_response:
+    for chunk in similar_chunks:
         format_args = {key: chunk.get(arg, f"No {key} Provided") for key, arg in template_args.items()}
         formatted_source = source_template.format(**format_args)
-        sources += f"{20*'-'}\n{formatted_source}\n{20*'-'}" 
+        sources += f"{20*'-'}\n{formatted_source}\n{20*'-'}"
 
     prompt = f"Question: {question}\n\nSources:\n{20*'-'}\n{20*'-'}\n {sources}"
     llm_response = llm_function(
@@ -63,5 +50,5 @@ def llm_response_with_query(
 
     return {
         "llm_response": llm_response,
-        "query_response": query_response
+        "similar_chunks": similar_chunks
     }

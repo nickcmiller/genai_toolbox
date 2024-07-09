@@ -156,7 +156,7 @@ def add_similarity_to_next_dict_item(
     return chunk_dicts
 
 # Query embeddings
-def query_chunks_with_embeddings(
+def find_similar_chunks(
     query: str,
     chunks_with_embeddings: list[dict], 
     embedding_function: Callable = create_openai_embedding,
