@@ -6,7 +6,7 @@ sys.path.append(root_dir)
 from chunk_and_embed.embedding_functions import create_openai_embedding, find_similar_chunks
 from text_prompting.model_calls import openai_text_response
 
-from typing import Callable, List, Dict
+from typing import Callable, List, Dict, Any
 import string
 from string import Template
 
