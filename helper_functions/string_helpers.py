@@ -102,6 +102,20 @@ def write_to_file(
         logging.error(f"Failed to write to file {file_path}: {e}")
         raise
 
+def delete_file(
+    file: str,
+    dir_name: str = None
+) -> None:
+    if dir_name:
+        full_path = os.path.join(dir_name, file)
+    elif os.path.dirname(file):
+        full_path = file
+    else:
+        full_path = os.path.join(os.getcwd(), file) 
+
+    if os.path.exists(full_path):
+        os.remove(full_path) 
+
 # Sorting files with numbers
 def extract_leading_number_from_filename(
     filename: str
