@@ -1,4 +1,4 @@
-from genai_toolbox.text_prompting.model_calls import groq_text_response
+from genai_toolbox.text_prompting.model_calls import groq_text_response, openai_text_response
 from genai_toolbox.helper_functions.datetime_helpers import get_date_with_timezone
 import feedparser
 import urllib
@@ -234,10 +234,17 @@ def generate_episode_summary(
         Describe the hosts and the guests expected in this specific episode.
     """
     
-    response = groq_text_response(
-        model_choice="llama3-70b",
-        prompt=summary_prompt
-    )
+    try:
+        response = groq_text_response(
+            model_choice="llama3-70b",
+            prompt=summary_prompt
+        )
+    except Exception as e:
+        logging.error(f"Groq model call failed: {e}")
+        response = openai_text_response(
+            model_choice="text-davinci-003",
+            prompt=summary_prompt
+        )
 
     return response
 
