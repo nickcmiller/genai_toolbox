@@ -1,10 +1,8 @@
-import os
-from dotenv import load_dotenv
-import logging
 from groq import Groq
 
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-load_dotenv(os.path.join(root_dir, '.env'))
+import os
+import logging
+
 logging.basicConfig(level=logging.INFO)
 
 def groq_client():

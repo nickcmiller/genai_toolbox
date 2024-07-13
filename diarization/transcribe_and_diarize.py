@@ -1,7 +1,4 @@
 import os
-import sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
 
 from typing import List
 from pydub import AudioSegment
@@ -10,9 +7,9 @@ import logging
 import traceback
 import shutil
 
-from download_sources.download_video import yt_dlp_download
-from diarization.custom_whisper_diarization import diarize_and_condense_audio_chunks
-from transcription.whisper_transcription_functions import main_transcribe_audio
+from genai_toolbox.download_sources.download_video import yt_dlp_download
+from genai_toolbox.diarization.custom_whisper_diarization import diarize_and_condense_audio_chunks
+from genai_toolbox.transcription.whisper_transcription_functions import main_transcribe_audio
 
 def create_audio_chunks(audio_file_path: str, temp_dir: str, chunk_size: int=25*60000) -> List[str]:
     """

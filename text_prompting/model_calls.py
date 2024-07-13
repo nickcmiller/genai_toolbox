@@ -1,19 +1,10 @@
-import os
-import sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
-
-from clients.groq_client import groq_client
-from clients.openai_client import openai_client
-from clients.anthropic_client import anthropic_client
+from genai_toolbox.clients.groq_client import groq_client
+from genai_toolbox.clients.openai_client import openai_client
+from genai_toolbox.clients.anthropic_client import anthropic_client
 
 from typing import List, Optional, Any
 import traceback
 import logging
-from dotenv import load_dotenv
-
-load_dotenv(os.path.join(root_dir, '.env'))
-logging.basicConfig(level=logging.INFO)
 
 def get_client(
     api: str
@@ -212,4 +203,4 @@ def anthropic_text_response(
         raise RuntimeError("Failed to generate response due to an internal error.")
 
 if __name__ == "__main__":
-    print(openai_text_response("What is the capital of Netherlands?"))
+    print(anthropic_text_response("What is the capital of Netherlands?"))

@@ -1,14 +1,9 @@
-import os
-import sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
-
 from pyannote.audio import Pipeline
 import torch
 
 import logging
 import time
-from dotenv import load_dotenv
+import os
 
 from pydub import AudioSegment
 from typing import List, Dict
@@ -17,7 +12,6 @@ import json
 
 logging.basicConfig(level=logging.DEBUG)
 
-load_dotenv()
 # Need to accept the pyannote terms of service on Hugging Face website
 HUGGINGFACE_ACCESS_TOKEN = os.getenv("HUGGINGFACE_ACCESS_TOKEN")
 

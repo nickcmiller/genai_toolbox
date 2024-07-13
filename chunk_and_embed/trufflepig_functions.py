@@ -1,11 +1,7 @@
 from trufflepig import Trufflepig, Index
-from dotenv import load_dotenv
 import os
 from typing import List, Dict, Optional
 
-load_dotenv()
-
-trufflepig_api_key = os.getenv("TRUFFLEPIG_API_KEY")
 client = Trufflepig(trufflepig_api_key)
 
 def initialize_index(index_name: str):

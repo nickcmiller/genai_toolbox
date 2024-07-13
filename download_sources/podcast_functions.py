@@ -1,9 +1,5 @@
-import os
-import sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
-from helper_functions.datetime_helpers import get_date_with_timezone
-from text_prompting.model_calls import groq_text_response
+from genai_toolbox.text_prompting.model_calls import groq_text_response
+from genai_toolbox.helper_functions.datetime_helpers import get_date_with_timezone
 import feedparser
 import urllib
 
