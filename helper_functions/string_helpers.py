@@ -54,21 +54,21 @@ def write_to_file(
     output_dir_name: str = None
 ) -> Path:
     """
-    Writes content to a file.
+        Writes content to a file.
 
-    Args:
-        content (str | dict | list): The content to write to the file. Can be a string, a dictionary, or a list.
-        file (str): The name of the file to write to.
-        mode (str, optional): The mode to open the file in. Defaults to 'w'.
-        encoding (str, optional): The encoding to use when writing the file. Defaults to 'utf-8'.
-        output_dir_name (str, optional): The name of the output directory. If provided, the file will be created in this directory.
+        Args:
+            content (str | dict | list): The content to write to the file. Can be a string, a dictionary, or a list.
+            file (str): The name of the file to write to.
+            mode (str, optional): The mode to open the file in. Defaults to 'w'.
+            encoding (str, optional): The encoding to use when writing the file. Defaults to 'utf-8'.
+            output_dir_name (str, optional): The name of the output directory. If provided, the file will be created in this directory.
 
-    Returns:
-        Path: The path to the written file.
+        Returns:
+            Path: The path to the written file.
 
-    Raises:
-        ValueError: If the file argument is not a string or if the content is not a string, dictionary, or list.
-        IOError: If there is an error writing to the file.
+        Raises:
+            ValueError: If the file argument is not a string or if the content is not a string, dictionary, or list.
+            IOError: If there is an error writing to the file.
     """
     if not isinstance(file, str):
         raise ValueError("file must be a string.")
