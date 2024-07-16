@@ -1,0 +1,12 @@
+groq
+openai
+assemblyai
+pyannote.audio
+torch
+pydub
+yt-dlp
+trufflepig
+anthropic
+python-dotenv
+httpx
+numpy
