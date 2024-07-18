@@ -138,6 +138,7 @@ def openai_text_response(
     Use OpenAI format to generate a text response using OpenAI.
     """
     model_choices = {
+        "4o-mini": "gpt-4o-mini",
         "4o": "gpt-4o",
         "4": "gpt-4-turbo",
         "3.5": "gpt-3.5-turbo",
