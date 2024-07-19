@@ -1,10 +1,5 @@
-import os
-import sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
-
-from text_prompting.model_calls import openai_text_response, anthropic_text_response, groq_text_response
-from helper_functions.string_helpers import concatenate_list_text_to_list_text
+from genai_toolbox.text_prompting.model_calls import openai_text_response, anthropic_text_response, groq_text_response
+from genai_toolbox.helper_functions.string_helpers import concatenate_list_text_to_list_text
 
 from enum import Enum
 from typing import List, Optional
