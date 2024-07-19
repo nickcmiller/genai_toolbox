@@ -313,7 +313,11 @@ def identify_speakers(
     max_tries = 5
     
     for attempt in range(max_tries):
-        response = openai_text_response(prompt, system_instructions=system_prompt)
+        response = openai_text_response(
+            prompt=prompt, 
+            model_choice="4o-mini", 
+            system_instructions=system_prompt
+        )
         logging.info(f"Attempt {attempt + 1}: Response received.")
 
         try:

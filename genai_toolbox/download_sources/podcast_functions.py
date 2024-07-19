@@ -235,17 +235,17 @@ def generate_episode_summary(
     """
     
     try:
+        response = openai_text_response(
+            model_choice="4o-mini",
+            prompt=summary_prompt
+        )        
+    except Exception as e:
+        logging.error(f"OpenAI model call failed: {e}")
         response = groq_text_response(
             model_choice="llama3-70b",
             prompt=summary_prompt
         )
-    except Exception as e:
-        logging.error(f"Groq model call failed: {e}")
-        response = openai_text_response(
-            model_choice="text-davinci-003",
-            prompt=summary_prompt
-        )
-
+        
     return response
 
 if __name__ == "__main__":
