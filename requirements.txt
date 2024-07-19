@@ -4,9 +4,7 @@ groq
 httpx
 numpy
 openai
-pyannote.audio
 pydub
 python-dotenv
-torch
 trufflepig
 yt-dlp
