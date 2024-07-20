@@ -1,42 +1,43 @@
 import yt_dlp
-# from pydub import AudioSegment
-import googleapiclient.discovery
+import isodate
+from googleapiclient.discovery import build, Resource
+from googleapiclient.errors import HttpError
 
+from datetime import datetime
+import logging
 import os
 import re
-import logging
+from typing import List, Dict, Optional
 import traceback
-from dotenv import load_dotenv
-
-# Get the parent directory
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-dotenv_path = os.path.join(parent_dir, '.env')
-load_dotenv(dotenv_path, override=True)
-# load_dotenv()
-
-logging.basicConfig(level=logging.INFO)
 
 from genai_toolbox.helper_functions.datetime_helpers import get_date_with_timezone
 from genai_toolbox.text_prompting.model_calls import openai_text_response, groq_text_response
 
+logging.basicConfig(level=logging.INFO)
+
+# Constants
+YOUTUBE_API_SERVICE_NAME = "youtube"
+YOUTUBE_API_VERSION = "v3"
+MAX_RESULTS_PER_PAGE = 50
+
 def yt_dlp_download(
     yt_url_or_id: str, 
-    output_path: str = None
+    output_dir: str = None
 ) -> str:
     """
-    Downloads the audio track from a specified YouTube video URL or ID using the yt-dlp library, then converts it to an MP3 format file.
+        Downloads the audio track from a specified YouTube video URL or ID using the yt-dlp library, then converts it to an MP3 format file.
 
-    Args:
-        yt_url_or_id (str): The URL or ID of the YouTube video from which audio will be downloaded. This should be a valid YouTube video URL or ID.
+        Args:
+            yt_url_or_id (str): The URL or ID of the YouTube video from which audio will be downloaded. This should be a valid YouTube video URL or ID.
+            output_dir (str, optional): The directory where the downloaded audio file will be saved. Defaults to the current working directory.
 
-    Returns:
-        str: The absolute file path of the downloaded and converted MP3 file. This path includes the filename which is derived from the original video title.
+        Returns:
+            str: The absolute file path of the downloaded and converted MP3 file. This path includes the filename which is derived from the original video title.
 
-    Raises:
-        yt_dlp.utils.DownloadError: If there is an issue with downloading the video's audio due to reasons such as video unavailability or restrictions.
-        Exception: For handling unexpected errors during the download and conversion process.
+        Raises:
+            ValueError: If the input YouTube URL or ID is invalid.
+            yt_dlp.utils.DownloadError: If there is an issue with downloading the video's audio due to reasons such as video unavailability or restrictions.
+            Exception: For handling unexpected errors during the download and conversion process.
     """
     if not is_valid_youtube_url_or_id(yt_url_or_id):
         raise ValueError(f"Invalid YouTube URL or ID: {yt_url_or_id}")
@@ -44,8 +45,8 @@ def yt_dlp_download(
     if not yt_url_or_id.startswith(('http://', 'https://')):
         yt_url_or_id = f"https://youtu.be/{yt_url_or_id}"
 
-    if output_path is None:
-        output_path = os.getcwd()
+    if output_dir is None:
+        output_dir = os.getcwd()
 
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -54,7 +55,7 @@ def yt_dlp_download(
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
+        'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
     }
 
     try:
@@ -95,102 +96,139 @@ def is_valid_youtube_url_or_id(
     
     return False
 
-def get_channel_and_video_metadata(
+def retrieve_youtube_channel_and_video_metadata_by_date(
     api_key: str, 
     channel_id: str, 
-    start_date: str = None, 
-    end_date: str = None
-) -> dict:
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=api_key)
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None
+) -> List[Dict]:
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=api_key)
 
-    channel_metadata = _get_channel_metadata(youtube, channel_id)
-    video_metadata = _get_video_metadata(youtube, channel_metadata, start_date, end_date)
+    try:
+        channel_metadata = _get_channel_metadata(youtube, channel_id)
+        video_metadata = _get_video_metadata(youtube, channel_metadata, start_date, end_date)
+        return video_metadata
+    except HttpError as e:
+        logger.error(f"An HTTP error occurred: {e}")
+        raise
 
-    return video_metadata
-
-def _get_channel_metadata(
-    youtube: googleapiclient.discovery.Resource, 
-    channel_id: str
-) -> dict:
-    channel_response = youtube.channels().list(
-        part="snippet,brandingSettings,contentDetails",
-        id=channel_id
-    ).execute()
-    channel_info = channel_response["items"][0]
-
-    return {
-        "channel_id": channel_id,
-        "channel_title": channel_info["snippet"]["title"],
-        "channel_description": channel_info["snippet"]["description"],
-        "channel_keywords": channel_info["brandingSettings"]["channel"].get("keywords", ""),
-        "uploadsPlaylistId": channel_info["contentDetails"]["relatedPlaylists"]["uploads"]
-    }
+def _get_channel_metadata(youtube: Resource, channel_id: str) -> Dict:
+    try:
+        channel_response = youtube.channels().list(
+            part="snippet,brandingSettings,contentDetails",
+            id=channel_id
+        ).execute()
+        
+        if not channel_response.get("items"):
+            raise ValueError(f"No channel found for ID: {channel_id}")
+        
+        channel_info = channel_response["items"][0]
+        return {
+            "channel_id": channel_id,
+            "feed_title": channel_info["snippet"]["title"],
+            "feed_description": channel_info["snippet"]["description"],
+            "feed_keywords": channel_info["brandingSettings"]["channel"].get("keywords", ""),
+            "uploadsPlaylistId": channel_info["contentDetails"]["relatedPlaylists"]["uploads"]
+        }
+    except HttpError as e:
+        logger.error(f"Error fetching channel metadata: {e}")
+        raise
 
 def _get_video_metadata(
-    youtube: googleapiclient.discovery.Resource, 
-    channel_metadata: dict, 
-    start_date: str = None, 
-    end_date: str = None
-) -> list:
+    youtube: Resource, 
+    channel_metadata: Dict, 
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None
+) -> List[Dict]:
     video_metadata = []
-    next_page_token = None
-
-    # Convert date strings to datetime objects
     published_after = get_date_with_timezone(start_date) if start_date else None
     published_before = get_date_with_timezone(end_date) if end_date else None
 
-    while True:
-        request_params = {
-            "part": "contentDetails,snippet,status",
-            "playlistId": channel_metadata["uploadsPlaylistId"],
-            "maxResults": 50,
-            "pageToken": next_page_token
-        }
+    request_params = {
+        "part": "contentDetails,snippet,status",
+        "playlistId": channel_metadata["uploadsPlaylistId"],
+        "maxResults": MAX_RESULTS_PER_PAGE
+    }
 
-        response = youtube.playlistItems().list(**request_params).execute()
-
-        for item in response["items"]:
-            published_at = get_date_with_timezone(item["snippet"]["publishedAt"])
-            if (not published_after or published_at >= published_after) and (not published_before or published_at <= published_before):
-                video_info = {
-                    "video_id": item["contentDetails"]["videoId"],
-                    "video_title": item["snippet"]["title"],
-                    "video_description": item["snippet"]["description"],
-                    "published_at": item["snippet"]["publishedAt"],
-                    **{k: v for k, v in channel_metadata.items() if k != "uploadsPlaylistId"}
-                }
-                video_metadata.append(video_info)
-
-        next_page_token = response.get("nextPageToken")
-        if not next_page_token:
-            break
+    try:
+        while True:
+            response = youtube.playlistItems().list(**request_params).execute()
+            
+            for item in response["items"]:
+                video_id = item["contentDetails"]["videoId"]
+                published_at = get_date_with_timezone(item["snippet"]["publishedAt"])
+                if _is_within_date_range(published_at, published_after, published_before):
+                    # Get additional video details to check duration
+                    video_response = youtube.videos().list(
+                        part="contentDetails",
+                        id=video_id
+                    ).execute()
+                    
+                    if video_response["items"]:
+                        duration = video_response["items"][0]["contentDetails"]["duration"]
+                        if not _is_short_video(duration):
+                            video_info = {
+                                "video_id": video_id,
+                                "title": item["snippet"]["title"],
+                                "description": item["snippet"]["description"],
+                                "published": item["snippet"]["publishedAt"],
+                                **{k: v for k, v in channel_metadata.items() if k != "uploadsPlaylistId"}
+                            }
+                            video_metadata.append(video_info)
+            
+            if "nextPageToken" not in response:
+                break
+            request_params["pageToken"] = response["nextPageToken"]
+    
+    except HttpError as e:
+        logger.error(f"Error fetching video metadata: {e}")
+        raise
 
     return video_metadata
 
+def _is_short_video(duration: str) -> bool:
+    """
+    Check if a video is a Short based on its duration.
+    YouTube Shorts are typically 60 seconds or less.
+    """
+    try:
+        duration_timedelta = isodate.parse_duration(duration)
+        total_seconds = duration_timedelta.total_seconds()
+        return total_seconds <= 60
+    except isodate.ISO8601Error:
+        logging.warning(f"Invalid duration format: {duration}")
+        return False
+
+def _is_within_date_range(
+    date: datetime, 
+    start: Optional[datetime], 
+    end: Optional[datetime]
+) -> bool:
+    return (not start or date >= start) and (not end or date <= end)
+
 def generate_episode_summary(
-    video_title: str,
-    video_description: str,
-    channel_keywords: str,
-    channel_title: str,
-    channel_description: str
+    title: str,
+    description: str,
+    feed_keywords: str,
+    feed_title: str,
+    feed_description: str
 ) -> str:
     summary_prompt = f"""
         {'-'*30}\n 
         Description of the YouTube channel:\n 
         {'-'*30}\n 
-        {channel_title} \n
-        {channel_description} \n
-        Here are keywords for the channel: {channel_keywords}
+        {feed_title} \n
+        {feed_description} \n
+        Here are keywords for the channel: {feed_keywords}
         \n
         {'-'*30}\n\n
         Description of this specific YouTube video:\n
         {'-'*30}\n 
-        {video_title} \n
-        {video_description} \n
+        {title} \n
+        {description} \n
         {'-'*30}\n\n
         Describe the hosts and the guests expected in this specific episode.
     """
-    print(summary_prompt)
     
     try:
         response = openai_text_response(
@@ -210,24 +248,25 @@ def generate_episode_summary(
         
     return response
 
-# Example usage
-import json
-import os
 
-api_key = os.getenv("YOUTUBE_API_KEY")
-channel_id = "UCyaN6mg5u8Cjy2ZI4ikWaug"
-start_date = "2024-06-28" 
-end_date = "2024-07-01" 
 
-video_metadata = get_channel_and_video_metadata(api_key, channel_id, start_date, end_date)
+if __name__ == "__main__":
+    # Example usage
+    import json
+    import os
 
-for video in video_metadata:
-    print(json.dumps(video, indent=4))
-    summary = generate_episode_summary(
-        video_title=video["video_title"],
-        video_description=video["video_description"],
-        channel_keywords=video["channel_keywords"],
-        channel_title=video["channel_title"],
-        channel_description=video["channel_description"]
-    )
-    video["summary"] = summary
+    # Get the parent directory
+    from dotenv import load_dotenv
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    dotenv_path = os.path.join(parent_dir, '.env')
+    load_dotenv(dotenv_path, override=True)
+
+    api_key = os.getenv("YOUTUBE_API_KEY")
+    channel_id = "UCyaN6mg5u8Cjy2ZI4ikWaug"
+    start_date = "2024-06-20" 
+    end_date = "2024-07-01" 
+
+    video_metadata = retrieve_youtube_channel_and_video_metadata_by_date(api_key, channel_id, start_date, end_date)
+
+    for video in video_metadata:
+        print(json.dumps(video, indent=4))

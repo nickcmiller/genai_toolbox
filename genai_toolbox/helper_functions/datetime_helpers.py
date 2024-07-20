@@ -6,29 +6,41 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-def convert_date_format(
-    date_string: str
-) -> str:
+def convert_date_format(date_string: str) -> str:
     """
-        Converts a date string from one format to another.
+    Converts a date string from two specific formats to "Month DD, YYYY".
 
-        This function takes a date string in the format "Day, DD Mon YYYY HH:MM:SS +ZZZZ"
-        and converts it to the format "Month DD, YYYY".
+    This function handles date strings in the following formats:
+    1. "Day, DD Mon YYYY HH:MM:SS +ZZZZ"
+    2. ISO 8601 format (e.g., "YYYY-MM-DDTHH:MM:SSZ")
 
-        Args:
-            date_string (str): The input date string in the format "Day, DD Mon YYYY HH:MM:SS +ZZZZ".
+    Args:
+        date_string (str): The input date string in one of the above formats.
 
-        Returns:
-            str: The formatted date string in the format "Month DD, YYYY".
+    Returns:
+        str: The formatted date string in the format "Month DD, YYYY".
 
-        Raises:
-            ValueError: If the input date string is not in the expected format.
+    Raises:
+        ValueError: If the input date string is not in one of the expected formats.
 
-        Example:
-            >>> convert_date_format("Tue, 18 Jun 2024 09:00:36 +0000")
-            "June 18, 2024"
+    Examples:
+        >>> convert_date_format("Tue, 18 Jun 2024 09:00:36 +0000")
+        "June 18, 2024"
+        >>> convert_date_format("2024-06-30T01:01:31Z")
+        "June 30, 2024"
     """
-    dt = datetime.strptime(date_string, "%a, %d %b %Y %H:%M:%S %z")
+    try:
+        # Try parsing as "Day, DD Mon YYYY HH:MM:SS +ZZZZ"
+        dt = datetime.strptime(date_string, "%a, %d %b %Y %H:%M:%S %z")
+    except ValueError:
+        try:
+            # Try parsing as ISO 8601 format
+            dt = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            raise ValueError(f"Unable to parse the date string: {date_string}. "
+                             "Expected formats are 'Day, DD Mon YYYY HH:MM:SS +ZZZZ' "
+                             "or 'YYYY-MM-DDTHH:MM:SSZ'.")
+    
     return dt.strftime("%B %d, %Y")
 
 def get_date_with_timezone(

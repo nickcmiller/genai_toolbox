@@ -308,6 +308,7 @@ def identify_speakers(
                 "Speaker B": "FirstName LastName"
             }
             ```
+            All keys must be in the format 'Speaker X' where X is any letter or number
         """ 
 
     max_tries = 5
@@ -319,6 +320,7 @@ def identify_speakers(
             system_instructions=system_prompt
         )
         logging.info(f"Attempt {attempt + 1}: Response received.")
+        logging.info(f"Response: {response}")
 
         try:
             response_dict = evaluate_and_clean_valid_response(response, dict)
