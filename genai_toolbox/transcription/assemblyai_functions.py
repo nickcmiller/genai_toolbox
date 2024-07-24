@@ -3,7 +3,7 @@ import sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
-from text_prompting.model_calls import groq_text_response, openai_text_response
+from text_prompting.model_calls import groq_text_response, openai_text_response, anthropic_text_response
 from helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file, retrieve_file
 
 import assemblyai as aai
@@ -247,15 +247,12 @@ def generate_assemblyai_transcript(
 
 def identify_speakers(
     summary: str,
-    transcript: str,
-    prompt: str = None,
-    system_prompt: str = None,
+    transcript: str
 ) -> dict:
     """
         Identifies the speakers in a podcast based on the summary and transcript.
 
-        This function takes a summary and transcript of a podcast as input, along with optional prompt
-        and system prompt strings. It then uses the OpenAI API to generate a response that identifies
+        This function takes a summary and transcript of a podcast as input. It then uses the OpenAI API to generate a response that identifies
         the speakers in the podcast. The response is expected to be a dictionary mapping speaker labels
         (e.g., "Speaker A") to their actual names.
 
@@ -265,10 +262,6 @@ def identify_speakers(
         Args:
             summary (str): A summary of the podcast.
             transcript (str): The full transcript of the podcast.
-            prompt (str, optional): The prompt string to use for generating the response.
-                If not provided, a default prompt will be used.
-            system_prompt (str, optional): The system prompt string to use for generating the response.
-                If not provided, a default system prompt will be used.
 
         Returns:
             dict: A dictionary mapping speaker labels to their actual names.
@@ -280,43 +273,69 @@ def identify_speakers(
             >>> print(result)
             {'Speaker A': 'John', 'Speaker B': 'Jane'}
     """
-    if prompt is None:
-        prompt = f"""
-            Using the context of the conversation in the transcript and the background provided by the summary, identify the participating speakers.
 
-            Summary of the conversation:\n {summary}
+    speaker_references_prompt = f"""
+        What did each Speaker call each other in the transcript?
 
-            Transcript of the conversation:\n {transcript}
-        """
+        What would you guess each Speaker's name is? Explain your reasoning.
 
-    if system_prompt is None:
-        system_prompt = """
-            You only return properly formatted key-value store. 
-            The output should Python eval to a dictionary. type(eval(response)) == dict
+        Transcript:\n
+        {transcript}
+    """
 
-            Output Examples:
-            ```
-            Example 1:
-            {
-                "Speaker A": "FirstName LastName", 
-                "Speaker B": "FirstName LastName"
-            }
+    speaker_references_system_prompt = "You are a helpful assistant that helps me identify the speakers in a YouTube video."
 
-            Example 2:
-            {
-                "Speaker A": "FirstName LastName", 
-                "Speaker B": "FirstName LastName"
-            }
-            ```
-            All keys must be in the format 'Speaker X' where X is any letter or number
-        """ 
+    # speaker_reference_summary = groq_text_response(
+    #     model_choice="llama3.1-70b",
+    #     prompt=speaker_references_prompt,
+    #     system_instructions=speaker_references_system_prompt
+    # )
+
+    speaker_reference_guess= anthropic_text_response(
+        model_choice="sonnet",
+        prompt=speaker_references_prompt,
+        system_instructions=speaker_references_system_prompt
+    )
+
+    prompt = f"""
+        Using the context of the conversation in the transcript, and the summary, identify the participating speakers.
+        
+        Expected Hosts and Guests:\n
+        {summary}
+
+        Speaker Guesses:\n
+        {speaker_reference_guess}
+
+        Transcript of the conversation:\n {transcript}
+    """
+
+    system_prompt = """
+    You only return properly formatted key-value store. 
+        The output should Python eval to a dictionary. type(eval(response)) == dict
+
+        Output Examples:
+        ```
+        Example 1:
+        {
+            "Speaker A": "FirstName LastName", 
+            "Speaker B": "FirstName LastName"
+        }
+
+        Example 2:
+        {
+            "Speaker A": "FirstName LastName", 
+            "Speaker B": "FirstName LastName"
+        }
+        ```
+        All keys must be in the format 'Speaker X' where X is any letter or number
+    """ 
 
     max_tries = 5
     
     for attempt in range(max_tries):
         response = openai_text_response(
             prompt=prompt, 
-            model_choice="4o-mini", 
+            model_choice="4o", 
             system_instructions=system_prompt
         )
         logging.info(f"Attempt {attempt + 1}: Response received.")
@@ -386,19 +405,19 @@ def replace_speakers_in_utterances(
 
 
 def replace_speakers_in_assemblyai_utterances(
-    transcribed_utterances: dict,
-    audio_summary: str,
+    utterances: dict,
+    summary: str,
     output_dir_name: str = None
 ) -> dict:
-    speaker_dict = identify_speakers(audio_summary, transcribed_utterances['transcript'])
+    speaker_dict = identify_speakers(summary, utterances['transcript'])
     replaced_utterances = replace_speakers_in_utterances(
-        transcribed_utterances['transcribed_utterances'], 
+        utterances['transcribed_utterances'], 
         speaker_dict
     )
     replaced_transcript = create_text_transcript(replaced_utterances)
 
     output_dict = {
-        "extracted_title": transcribed_utterances['extracted_title'],
+        "extracted_title": utterances['extracted_title'],
         "transcribed_utterances": replaced_utterances, 
         "transcript": replaced_transcript
     }
@@ -406,7 +425,7 @@ def replace_speakers_in_assemblyai_utterances(
     if output_dir_name:
         file_path = write_to_file(
             content=output_dict,
-            file=f"{transcribed_utterances['extracted_title']}_replaced.json",
+            file=f"{utterances['extracted_title']}_replaced.json",
             output_dir_name=output_dir_name
         )
 
@@ -428,48 +447,5 @@ def generate_assemblyai_transcript_with_speakers(
     )
     
     return replaced_transcript
-
-if __name__ == "__main__":
-    from download_sources.podcast_functions import return_all_entries_from_feed, download_podcast_audio, generate_episode_summary
-    import json
-
-    mfm_feed_url = "https://feeds.megaphone.fm/HS2300184645"
-    dithering_feed_url = "https://dithering.passport.online/feed/podcast/KCHirQXM6YBNd6xFa1KkNJ"
-    entries = return_all_entries_from_feed(dithering_feed_url)
-    first_entry = entries[0]
-    audio_file_path = download_podcast_audio(first_entry["url"], first_entry["title"])
-    # 
-
-    if False:
-        transcribed_utterances_dict = generate_assemblyai_utterances(
-            audio_file_path, 
-            output_dir_name="tmp"
-        )
-    else:
-        extracted_title = Path(audio_file_path).stem
-        file_name = f"{extracted_title}_utterances.json"
-        transcribed_utterances_dict = retrieve_file(
-            file=file_name,
-            dir_name="tmp"
-        )
-
-    print(transcribed_utterances_dict['transcribed_utterances'][0])
-    print(type(transcribed_utterances_dict))
-
-    if True:
-        episode_summary = generate_episode_summary(first_entry["summary"], first_entry["feed_summary"])
-        replaced_utterances_dict = replace_speakers_in_assemblyai_utterances(
-            transcribed_utterances_dict, 
-            episode_summary, 
-            output_dir_name="tmp"
-        )
-    else:
-        replaced_utterances_dict = retrieve_file(
-            file=f"{transcribed_utterances_dict['extracted_title']}_replaced.json",
-            dir_name="tmp"
-        )
-
-    print(transcribed_utterances_dict['transcribed_utterances'][0])
-    # print(json.dumps(replaced_utterances_dict, indent=4))
 
     

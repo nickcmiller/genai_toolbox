@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 import traceback
 
 from genai_toolbox.helper_functions.datetime_helpers import get_date_with_timezone
-from genai_toolbox.text_prompting.model_calls import openai_text_response, groq_text_response
+from genai_toolbox.text_prompting.model_calls import openai_text_response, groq_text_response, anthropic_text_response
 
 logging.basicConfig(level=logging.INFO)
 
@@ -211,9 +211,11 @@ def generate_episode_summary(
     description: str,
     feed_keywords: str,
     feed_title: str,
-    feed_description: str
+    feed_description: str,
 ) -> str:
-    summary_prompt = f"""
+    host_guest_prompt = f"""
+        Using the information below, concisely describe the hosts and the guests expected in this specific episode. Use bullet points to list the hosts and guests.
+
         {'-'*30}\n 
         Description of the YouTube channel:\n 
         {'-'*30}\n 
@@ -227,26 +229,17 @@ def generate_episode_summary(
         {title} \n
         {description} \n
         {'-'*30}\n\n
-        Describe the hosts and the guests expected in this specific episode.
     """
+    host_guest_system_prompt = "You are a helpful assistant that helps me identify the hosts and guests in a YouTube video."
+
+    host_guest_summary = openai_text_response(
+        model_choice="4o-mini",
+        prompt=host_guest_prompt,
+        system_instructions=host_guest_system_prompt
+    )
+
+    return host_guest_summary
     
-    try:
-        response = openai_text_response(
-            model_choice="4o-mini",
-            prompt=summary_prompt
-        )        
-    except Exception as e:
-        logging.error(f"OpenAI model call failed: {e}")
-        try:
-            response = groq_text_response(
-                model_choice="llama3-70b",
-                prompt=summary_prompt
-            )
-        except Exception as e:
-            logging.error(f"Groq model call failed: {e}")
-            response = "Failed to generate summary due to API errors."
-        
-    return response
 
 
 
