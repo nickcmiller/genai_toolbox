@@ -3,7 +3,7 @@ import sys
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
-from text_prompting.model_calls import groq_text_response, openai_text_response, anthropic_text_response
+from text_prompting.model_calls import groq_text_response, openai_text_response, anthropic_text_response, fallback_text_response
 from helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file, retrieve_file
 
 import assemblyai as aai
@@ -285,17 +285,17 @@ def identify_speakers(
 
     speaker_references_system_prompt = "You are a helpful assistant that helps me identify the speakers in a YouTube video."
 
-    # speaker_reference_summary = groq_text_response(
-    #     model_choice="llama3.1-70b",
-    #     prompt=speaker_references_prompt,
-    #     system_instructions=speaker_references_system_prompt
-    # )
 
-    speaker_reference_guess= anthropic_text_response(
-        model_choice="sonnet",
+    speaker_reference_summary = fallback_text_response(
         prompt=speaker_references_prompt,
         system_instructions=speaker_references_system_prompt
+        api_order=["groq", "anthropic"],
+        model_choices={
+            "groq": "llama3.1-70b",
+            "anthropic": "sonnet",
+        },
     )
+
 
     prompt = f"""
         Using the context of the conversation in the transcript, and the summary, identify the participating speakers.

@@ -2,7 +2,7 @@ from genai_toolbox.clients.groq_client import groq_client
 from genai_toolbox.clients.openai_client import openai_client
 from genai_toolbox.clients.anthropic_client import anthropic_client
 
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict, Callable
 import traceback
 import logging
 
@@ -204,6 +204,64 @@ def anthropic_text_response(
     except Exception as e:
         logging.error(f"Failed to generate response with Anthropic: {e}")
         raise RuntimeError("Failed to generate response due to an internal error.")
+
+def fallback_text_response(
+    prompt: str,
+    system_instructions: str = None,
+    history_messages: List[dict] = None,
+    api_order: List[str] = ["groq", "openai", "anthropic"],
+    model_choices: Dict[str, str] = {
+        "groq": "llama3.1-70b",
+        "openai": "4o",
+        "anthropic": "sonnet"
+    },
+    temperature: float = 0.2,
+    max_tokens: int = 4096
+) -> str:
+    """
+    Generate a text response using multiple APIs with fallback support.
+
+    Args:
+        prompt (str): The user's input prompt.
+        system_instructions (str, optional): System instructions for the AI.
+        history_messages (List[dict], optional): Previous conversation history.
+        api_order (List[str]): Order of APIs to try.
+        model_choices (Dict[str, str]): Model choice for each API.
+        temperature (float): Temperature for text generation.
+        max_tokens (int): Maximum number of tokens to generate.
+
+    Returns:
+        str: Generated text response.
+
+    Raises:
+        RuntimeError: If all API calls fail.
+    """
+    api_functions = {
+        "groq": groq_text_response,
+        "openai": openai_text_response,
+        "anthropic": anthropic_text_response
+    }
+
+    for api in api_order:
+        if api not in api_functions:
+            logging.warning(f"Unsupported API: {api}. Skipping.")
+            continue
+
+        try:
+            response = api_functions[api](
+                prompt=prompt,
+                system_instructions=system_instructions,
+                history_messages=history_messages,
+                model_choice=model_choices.get(api, None),
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            logging.info(f"Successfully generated response using {api} API.")
+            return response
+        except Exception as e:
+            logging.error(f"Failed to generate response with {api} API: {str(e)}")
+
+    raise RuntimeError("All API calls failed. Unable to generate a response.")
 
 if __name__ == "__main__":
     print(anthropic_text_response("What is the capital of Netherlands?"))
