@@ -286,16 +286,15 @@ def identify_speakers(
     speaker_references_system_prompt = "You are a helpful assistant that helps me identify the speakers in a YouTube video."
 
 
-    speaker_reference_summary = fallback_text_response(
+    speaker_reference_guess = fallback_text_response(
         prompt=speaker_references_prompt,
-        system_instructions=speaker_references_system_prompt
+        system_instructions=speaker_references_system_prompt,
         api_order=["groq", "anthropic"],
         model_choices={
             "groq": "llama3.1-70b",
             "anthropic": "sonnet",
         },
     )
-
 
     prompt = f"""
         Using the context of the conversation in the transcript, and the summary, identify the participating speakers.
