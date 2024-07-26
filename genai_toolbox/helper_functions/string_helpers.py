@@ -49,9 +49,9 @@ def retrieve_file(
 def write_to_file(
     content: str | dict | list, 
     file: str,
+    output_dir_name: str = None,
     mode: str = 'w',
-    encoding: str = 'utf-8',
-    output_dir_name: str = None
+    encoding: str = 'utf-8'
 ) -> Path:
     """
         Writes content to a file.
