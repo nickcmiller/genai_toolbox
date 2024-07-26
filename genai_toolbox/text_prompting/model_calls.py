@@ -84,12 +84,14 @@ def openai_compatible_text_response(
             temperature=temperature,
             max_tokens=max_tokens
         )
+        if not completion.choices[0].message.content:
+            raise ValueError("No valid response received from the API")
         logging.info(f"API: {api}, Model: {model}, Completion Usage: {completion.usage}")
         return completion.choices[0].message.content
     except Exception as e:
         logging.error(f"API: {api}, Error: {e}")
         traceback.print_exc()
-        return "An error occurred while generating the response."
+        raise
 
 def groq_text_response(
     prompt: str,
@@ -200,6 +202,9 @@ def anthropic_text_response(
             temperature=temperature,
             max_tokens=max_tokens
         )
+        if not completion.content[0].text:
+            raise ValueError("No valid response received from the API")
+        logging.info(f"API: Anthropic, Model: {model}, Completion Usage: {completion.usage}")
         return completion.content[0].text
     except Exception as e:
         logging.error(f"Failed to generate response with Anthropic: {e}")
@@ -256,10 +261,12 @@ def fallback_text_response(
                 temperature=temperature,
                 max_tokens=max_tokens
             )
-            logging.info(f"Successfully generated response using {api} API.")
+            logging.info(f"Successfully generated fallback_text_response using {api} API.")
             return response
         except Exception as e:
-            logging.error(f"Failed to generate response with {api} API: {str(e)}")
+            error_code = getattr(e, 'status_code', None) or getattr(e, 'code', 'Unknown')
+            logging.error(f"Failed to generate with {api} API. Error code: {error_code}. Falling back to the next API.")
+            continue
 
     raise RuntimeError("All API calls failed. Unable to generate a response.")
 

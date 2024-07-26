@@ -165,7 +165,7 @@ def consolidate_short_utterances(
             finalize_group()
             current_group = None
 
-    finalize_group()  # Handle the last group if exists
+    finalize_group()
 
     return consolidated
 
@@ -222,7 +222,7 @@ def consolidate_similar_utterances(
             finalize_group()
             current_group = None
 
-    finalize_group()  # Handle the last group if exists
+    finalize_group()
 
     return consolidated
 
@@ -298,14 +298,14 @@ def milliseconds_to_minutes_in_utterances(
     Example:
         Input:
         [
-            {'speakers': ['John'], 'text': 'Hello!', 'start': 1000, 'end': 2000},
-            {'speakers': ['Alice'], 'text': 'Hi there!', 'start': 2500, 'end': 3500}
+            {... 'start': 1000, 'end': 2000},
+            {... 'start': 2500, 'end': 3500}
         ]
         
         Output:
         [
-            {'speakers': ['John'], 'text': 'Hello!', 'start': 1000, 'end': 2000, 'start_time': '0:01', 'end_time': '0:02'},
-            {'speakers': ['Alice'], 'text': 'Hi there!', 'start': 2500, 'end': 3500, 'start_time': '0:02', 'end_time': '0:03'}
+            {... 'start': 1000, 'end': 2000, 'start_time': '0:01', 'end_time': '0:02'},
+            {... 'start': 2500, 'end': 3500, 'start_time': '0:02', 'end_time': '0:03'}
         ]
     """
     def ms_to_min_sec(ms: int) -> str:
@@ -340,14 +340,14 @@ def rename_start_end_to_ms(
     Example:
         Input:
         [
-            {'speakers': ['John'], 'text': 'Hello!', 'start': 1000, 'end': 2000},
-            {'speakers': ['Alice'], 'text': 'Hi there!', 'start': 2500, 'end': 3500}
+            {... 'start': 1000, 'end': 2000},
+            {... 'start': 2500, 'end': 3500}
         ]
         
         Output:
         [
-            {'speakers': ['John'], 'text': 'Hello!', 'start_ms': 1000, 'end_ms': 2000},
-            {'speakers': ['Alice'], 'text': 'Hi there!', 'start_ms': 2500, 'end_ms': 3500}
+            {... 'start_ms': 1000, 'end_ms': 2000},
+            {... 'start_ms': 2500, 'end_ms': 3500}
         ]
     """
     return [
