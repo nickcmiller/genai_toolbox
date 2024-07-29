@@ -1,0 +1,15 @@
+anthropic
+assemblyai
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+python-dotenv
+groq
+isodate
+httpx
+numpy
+openai
+pydub
+python-dotenv
+trufflepig
+yt-dlp
