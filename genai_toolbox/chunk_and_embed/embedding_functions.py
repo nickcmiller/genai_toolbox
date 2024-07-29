@@ -1,5 +1,8 @@
 from genai_toolbox.clients.openai_client import openai_client
+
 from typing import Dict, Callable
+import concurrent.futures
+import logging
 
 # Similarity Metrics
 def cosine_similarity(
@@ -53,26 +56,55 @@ def create_embedding_for_dict(
     model_choice: str = "text-embedding-3-small"
 ) -> dict:
     """
-        Creates an embedding for the text in the given dictionary using the specified model and retains all other key-value pairs.
+        create_embedding_for_dict
 
-        Args:
-        chunk_dict (dict): A dictionary containing the text to embed under the key 'text' and possibly other data.
-        embedding_function (Callable): The embedding function used to create embeddings.
-        model_choice (str): The model identifier to use for embedding generation.
+        This function generates an embedding for a given dictionary using a specified embedding function.
+
+        Parameters:
+        - embedding_function (Callable): A callable function that takes a model choice and text as input 
+                                        and returns the corresponding embedding. This function is expected 
+                                        to handle the embedding process, typically by calling an external 
+                                        API or library.
+        - chunk_dict (dict): A dictionary containing the data for which the embedding is to be created. 
+                            It must include the text to be embedded under the specified key.
+        - key_to_embed (str, optional): The key in the dictionary that contains the text to be embedded. 
+                                        Defaults to "text".
+        - model_choice (str, optional): The identifier for the embedding model to be used. Defaults to 
+                                        "text-embedding-3-small".
 
         Returns:
-        dict: A dictionary containing the original text, its corresponding embedding, and all other key-value pairs from the input dictionary.
+        - dict: A new dictionary that includes all the original key-value pairs from chunk_dict, 
+                along with a new key "embedding" that contains the generated embedding.
+
+        Raises:
+        - KeyError: If the specified key_to_embed is not found in chunk_dict.
+        - ValueError: If the embedding_function is not callable.
+
+        Logging:
+        - If the text to be embedded is empty or consists only of whitespace, a warning is logged 
+        indicating that the chunk_dict is being skipped.
+
+        Example:
+        >>> chunk = {"text": "This is a sample text."}
+        >>> embedding_result = create_embedding_for_dict(create_openai_embedding, chunk)
+        >>> print(embedding_result)
+        {
+            "text": "This is a sample text.",
+            "embedding": [0.1, 0.2, 0.3, ...]  # Example embedding vector
+        }
     """
-    if 'text' not in chunk_dict:
-        raise KeyError("The 'text' key is missing from the chunk_dict.")
+    if key_to_embed not in chunk_dict:
+        raise KeyError(f"The '{key_to_embed}' key is missing from the chunk_dict.")
     
-    if not chunk_dict[key_to_embed]:
-        raise ValueError(f"The '{key_to_embed}' value in chunk_dict is empty.")
+    text = chunk_dict[key_to_embed]
+    if not text or not text.strip():
+        # Log the chunk_dict that's not being processed due to empty text
+        logging.warning(f"Skipping chunk_dict due to empty text: {chunk_dict}")
+        return None
 
     if not isinstance(embedding_function, Callable):
         raise ValueError("The 'embedding_function' argument must be a callable object.")
 
-    text = chunk_dict[key_to_embed]
     embedding = embedding_function(
         model_choice=model_choice,
         text=text
@@ -84,33 +116,65 @@ def embed_dict_list(
     embedding_function: Callable,
     chunk_dicts: list[dict],
     key_to_embed: str = "text",
-    model_choice: str = "text-embedding-3-small"
+    model_choice: str = "text-embedding-3-small",
+    max_workers: int = 25
 ) -> list[dict]:
     """
-        Creates embeddings for a list of dictionaries containing text.
+        embed_dict_list function
 
-        This function applies the specified embedding function to each dictionary in the input list,
-        embedding the text found under the specified key in each dictionary.
+        This function takes a list of dictionaries and generates embeddings for each dictionary 
+        using the specified embedding function. It utilizes a ThreadPoolExecutor to perform 
+        the embedding process concurrently, allowing for efficient processing of multiple 
+        dictionaries at once.
 
-        Args:
-        embedding_function (Callable): The function used to create embeddings.
-        chunk_dicts (list[dict]): A list of dictionaries, each containing text to be embedded.
-        key_to_embed (str, optional): The key in each dictionary that contains the text to embed. Defaults to "text".
-        model_choice (str, optional): The model identifier to use for embedding generation. Defaults to "text-embedding-3-small".
+        Parameters:
+            embedding_function (Callable): A callable function that generates embeddings. 
+                                            This function should accept a model_choice and text 
+                                            as parameters and return the corresponding embedding.
+            chunk_dicts (list[dict]): A list of dictionaries, each containing the data for which 
+                                    embeddings need to be generated. Each dictionary should 
+                                    include a key specified by the key_to_embed parameter.
+            key_to_embed (str, optional): The key in each dictionary whose value will be used 
+                                        for generating the embedding. Defaults to "text".
+            model_choice (str, optional): The identifier for the embedding model to be used. 
+                                        Defaults to "text-embedding-3-small".
+            max_workers (int, optional): The maximum number of threads to use for concurrent 
+                                        processing. Defaults to 25.
 
         Returns:
-        list[dict]: A list of dictionaries, each containing the original data plus the generated embedding.
+            list[dict]: A list of dictionaries, each containing the original key-value pairs 
+                        from the input dictionaries along with a new key "embedding" that 
+                        contains the generated embedding.
 
         Raises:
-        ValueError: If the embedding_function is not callable, if the key_to_embed is missing from any dictionary,
-                    or if the value for key_to_embed is empty in any dictionary.
+            ValueError: If the embedding_function is not callable.
+
+        Logging:
+            - If any chunk_dict is not processed due to an error, a warning is logged.
+
+        Example:
+            >>> chunks = [{"text": "This is a sample text."}, {"text": "Another sample text."}]
+            >>> embeddings = embed_dict_list(create_openai_embedding, chunks)
+            >>> print(embeddings)
+            [
+                {"text": "This is a sample text.", "embedding": [0.1, 0.2, 0.3, ...]},
+                {"text": "Another sample text.", "embedding": [0.4, 0.5, 0.6, ...]}
+            ]
     """
-    return [create_embedding_for_dict(
-        embedding_function=embedding_function, 
-        chunk_dict=chunk_dict, 
-        key_to_embed=key_to_embed,
-        model_choice=model_choice
-    ) for chunk_dict in chunk_dicts]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(
+                create_embedding_for_dict,
+                embedding_function=embedding_function,
+                chunk_dict=chunk_dict,
+                key_to_embed=key_to_embed,
+                model_choice=model_choice
+            )
+            for chunk_dict in chunk_dicts
+        ]
+        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    
+    return [result for result in results if result is not None]
 
 def add_similarity_to_next_dict_item(
     chunk_dicts: list[dict],
