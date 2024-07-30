@@ -91,7 +91,7 @@ def create_embedding_for_dict(
     embedding_function: Callable,
     chunk_dict: dict,
     key_to_embed: str = "text",
-    model_choice: str = "text-embedding-3-small"
+    model_choice: str = "text-embedding-3-large"
 ) -> dict:
     """
         create_embedding_for_dict
@@ -154,7 +154,7 @@ def embed_dict_list(
     embedding_function: Callable,
     chunk_dicts: list[dict],
     key_to_embed: str = "text",
-    model_choice: str = "text-embedding-3-small",
+    model_choice: str = "text-embedding-3-large",
     max_workers: int = 25
 ) -> list[dict]:
     """

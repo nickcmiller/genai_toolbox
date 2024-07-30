@@ -19,7 +19,7 @@ def llm_response_with_query(
     source_template: str = "Title: '{title}',\nText: '{text}'\n",
     template_args: dict = {"title": "title", "text": "text"},
     llm_function: Callable = openai_text_response,
-    llm_model_choice: str = "4o",
+    llm_model_choice: str = "4o-mini",
 ) -> Dict[str, Any]:
 
     if len(similar_chunks) == 0:
