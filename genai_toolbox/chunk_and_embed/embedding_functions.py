@@ -1,5 +1,7 @@
 from genai_toolbox.clients.openai_client import openai_client
 
+import tiktoken
+
 from typing import Dict, Callable
 import concurrent.futures
 import logging
@@ -49,6 +51,42 @@ def create_openai_embedding(
     return response.data[0].embedding
 
 # Embedding Functions
+def num_tokens_from_string(
+    string: str, 
+    encoding_name: str = "o200k_base"
+) -> int:
+    """
+        num_tokens_from_string
+
+        This function calculates the number of tokens in a given string based on a specified encoding.
+
+        Parameters:
+        - string (str): The input string for which the number of tokens is to be calculated.
+        - encoding_name (str, optional): The name of the encoding to be used for tokenization. 
+                                          Defaults to "o200k_base". This encoding is typically used 
+                                          for OpenAI models and may vary based on the model's requirements.
+
+        Returns:
+        - int: The total number of tokens in the input string. The token count is determined by 
+               encoding the string and counting the resulting tokens.
+
+        Raises:
+        - ValueError: If the encoding_name is not recognized or if there is an issue with the encoding process.
+
+        Example:
+        >>> token_count = num_tokens_from_string("Hello, world!")
+        >>> print(token_count)
+        4  # Example output, actual token count may vary based on encoding
+
+        Note:
+        This function utilizes the `tiktoken` library to perform the encoding and token counting. 
+        It is important to choose the correct encoding that matches the model being used for 
+        generating embeddings or processing text.
+    """
+    encoding = tiktoken.get_encoding(encoding_name)
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
+
 def create_embedding_for_dict(
     embedding_function: Callable,
     chunk_dict: dict,
