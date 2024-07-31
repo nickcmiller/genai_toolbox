@@ -5,6 +5,8 @@ from genai_toolbox.clients.anthropic_client import anthropic_client
 from typing import List, Optional, Any, Dict, Callable
 import traceback
 import logging
+import os
+import requests
 
 def get_client(
     api: str
@@ -210,6 +212,65 @@ def anthropic_text_response(
         logging.error(f"Failed to generate response with Anthropic: {e}")
         raise RuntimeError("Failed to generate response due to an internal error.")
 
+def perplexity_text_response(
+    prompt: str,
+    system_instructions: Optional[str] = None,
+    history_messages: Optional[List[dict]] = None,
+    model_choice: str = "llama3.1-8B-online",
+    temperature: float = 0.2,
+    max_tokens: int = 4096
+) -> str:
+    """
+    Use Perplexity format to generate a text response using Perplexity.
+    """
+    PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
+
+    model_choices = {
+        "llama3.1-8b-online": "llama-3.1-sonar-small-128k-online",
+        "llama3.1-8b": "llama-3.1-sonar-small-128k-chat",
+        "llama3.1-70b-online": "llama-3.1-sonar-large-128k-online",
+        "llama3.1-70b": "llama-3.1-sonar-large-128k-chat"
+    }
+    
+    if model_choice not in model_choices:
+        raise ValueError(f"Invalid model_choice. Available options: {list(model_choices.keys())}")
+
+    model = model_choices[model_choice]
+
+    default_system_instructions = "Be precise and concise."
+    system_instructions = system_instructions if system_instructions is not None else default_system_instructions
+    history_messages = history_messages if history_messages is not None else []
+
+    messages = [{"role": "system", "content": system_instructions}] if not history_messages else history_messages.copy()
+    
+    messages.append({"role": "user", "content": prompt})
+
+    url = "https://api.perplexity.ai/chat/completions"
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens
+    }
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}"
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()  # Raise an error for bad responses
+        content = response.json().get('choices', [{}])[0].get('message', {}).get('content', '')
+        if not content:
+            raise ValueError("No valid response received from the API")
+        logging.info(f"API: Perplexity, Model: {model}, Completion Usage: {response.json().get('usage', {})}")
+        return content
+    except Exception as e:
+        logging.error(f"Failed to generate response with Perplexity: {e}")
+        raise RuntimeError("Failed to generate response due to an internal error.")
+
+
 def fallback_text_response(
     prompt: str,
     system_instructions: str = None,
@@ -218,7 +279,8 @@ def fallback_text_response(
     model_choices: Dict[str, str] = {
         "groq": "llama3.1-70b",
         "openai": "4o",
-        "anthropic": "sonnet"
+        "anthropic": "sonnet",
+        "perplexity": "llama3.1-70b"
     },
     temperature: float = 0.2,
     max_tokens: int = 4096
@@ -244,7 +306,8 @@ def fallback_text_response(
     api_functions = {
         "groq": groq_text_response,
         "openai": openai_text_response,
-        "anthropic": anthropic_text_response
+        "anthropic": anthropic_text_response,
+        "perplexity": perplexity_text_response
     }
 
     for api in api_order:

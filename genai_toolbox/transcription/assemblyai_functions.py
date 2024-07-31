@@ -289,10 +289,10 @@ def identify_speakers(
     speaker_reference_guess = fallback_text_response(
         prompt=speaker_references_prompt,
         system_instructions=speaker_references_system_prompt,
-        api_order=["groq", "anthropic"],
+        api_order=["groq", "perplexity"],
         model_choices={
             "groq": "llama3.1-70b",
-            "anthropic": "sonnet",
+            "perplexity": "llama3.1-70b"
         },
     )
 
