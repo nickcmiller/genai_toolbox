@@ -6,6 +6,7 @@ from typing import List, Optional, Any, Dict, Callable
 import traceback
 import logging
 import os
+import time
 import requests
 
 def get_client(
@@ -80,15 +81,18 @@ def openai_compatible_text_response(
     client = get_client(api)
 
     try:
+        start_time = time.time()
         completion = client.create(
             messages=messages, 
             model=model,
             temperature=temperature,
             max_tokens=max_tokens
         )
+        end_time = time.time()
+        response_time = end_time - start_time
         if not completion.choices[0].message.content:
             raise ValueError("No valid response received from the API")
-        logging.info(f"API: {api}, Model: {model}, Completion Usage: {completion.usage}")
+        logging.info(f"API: {api}, Model: {model}, Completion Usage: {completion.usage}, Response Time: {response_time}")
         return completion.choices[0].message.content
     except Exception as e:
         logging.error(f"API: {api}, Error: {e}")
