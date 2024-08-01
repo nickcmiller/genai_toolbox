@@ -285,15 +285,25 @@ def identify_speakers(
 
     speaker_references_system_prompt = "You are a helpful assistant that helps me identify the speakers in a YouTube video."
 
+    llm_model_order = [
+        {
+            "provider": "perplexity", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "groq", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "anthropic", 
+            "model": "sonnet"
+        },
+    ]
 
     speaker_reference_guess = fallback_text_response(
         prompt=speaker_references_prompt,
         system_instructions=speaker_references_system_prompt,
-        api_order=["groq", "perplexity"],
-        model_choices={
-            "groq": "llama3.1-70b",
-            "perplexity": "llama3.1-70b"
-        },
+        llm_model_order=llm_model_order
     )
 
     prompt = f"""

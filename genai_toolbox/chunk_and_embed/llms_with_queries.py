@@ -1,5 +1,5 @@
 from genai_toolbox.chunk_and_embed.embedding_functions import create_openai_embedding, find_similar_chunks
-from genai_toolbox.text_prompting.model_calls import openai_text_response
+from genai_toolbox.text_prompting.model_calls import openai_text_response, fallback_text_response
 
 from typing import Callable, List, Dict, Any
 import string
@@ -18,8 +18,24 @@ def llm_response_with_query(
     llm_system_prompt: str = llm_system_prompt_default,
     source_template: str = "Title: '{title}',\nText: '{text}'\n",
     template_args: dict = {"title": "title", "text": "text"},
-    llm_function: Callable = openai_text_response,
-    llm_model_choice: str = "4o-mini",
+    llm_model_order: List[Dict[str, str]] = [
+            {
+                "provider": "groq", 
+                "model": "llama3.1-70b"
+            },
+            {
+                "provider": "perplexity", 
+                "model": "llama3.1-70b"
+            },
+            {
+                "provider": "openai", 
+                "model": "4o-mini"
+            },
+            {
+                "provider": "anthropic", 
+                "model": "sonnet"
+            }
+        ],
 ) -> Dict[str, Any]:
 
     if len(similar_chunks) == 0:
@@ -37,10 +53,10 @@ def llm_response_with_query(
         sources += f"{20*'-'}\n{formatted_source}\n{20*'-'}"
 
     prompt = f"Question: {question}\n\nSources:\n{20*'-'}\n{20*'-'}\n {sources}"
-    llm_response = llm_function(
+    llm_response = fallback_text_response(
         prompt, 
         system_instructions=llm_system_prompt, 
-        model_choice=llm_model_choice,
+        model_order=llm_model_order
     )
 
     return {

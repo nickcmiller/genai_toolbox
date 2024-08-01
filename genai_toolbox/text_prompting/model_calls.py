@@ -241,10 +241,10 @@ def perplexity_text_response(
     system_instructions = system_instructions if system_instructions is not None else default_system_instructions
     history_messages = history_messages if history_messages is not None else []
 
-    messages = [{"role": "system", "content": system_instructions}] if not history_messages else history_messages.copy()
+    messages = [{"role": "user", "content": system_instructions}, {"role": "assistant", "content": "I will follow your instructions."}] if not history_messages else history_messages.copy()
     
     messages.append({"role": "user", "content": prompt})
-
+    logging.info(f"Messages: {messages}")
     url = "https://api.perplexity.ai/chat/completions"
     payload = {
         "model": model,
@@ -260,14 +260,16 @@ def perplexity_text_response(
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()  # Raise an error for bad responses
+        response.raise_for_status()
         content = response.json().get('choices', [{}])[0].get('message', {}).get('content', '')
         if not content:
             raise ValueError("No valid response received from the API")
         logging.info(f"API: Perplexity, Model: {model}, Completion Usage: {response.json().get('usage', {})}")
         return content
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logging.error(f"Failed to generate response with Perplexity: {e}")
+        logging.error(f"Response status code: {e.response.status_code}")
+        logging.error(f"Response content: {e.response.text}")
         raise RuntimeError("Failed to generate response due to an internal error.")
 
 
@@ -275,13 +277,24 @@ def fallback_text_response(
     prompt: str,
     system_instructions: str = None,
     history_messages: List[dict] = None,
-    api_order: List[str] = ["groq", "openai", "anthropic"],
-    model_choices: Dict[str, str] = {
-        "groq": "llama3.1-70b",
-        "openai": "4o",
-        "anthropic": "sonnet",
-        "perplexity": "llama3.1-70b"
-    },
+    model_order: List[Dict[str, str]] = [
+        {
+            "provider": "groq", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "perplexity", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "openai", 
+            "model": "4o-mini"
+        },
+        {
+            "provider": "anthropic", 
+            "model": "sonnet"
+        }
+    ],
     temperature: float = 0.2,
     max_tokens: int = 4096
 ) -> str:
@@ -292,8 +305,7 @@ def fallback_text_response(
         prompt (str): The user's input prompt.
         system_instructions (str, optional): System instructions for the AI.
         history_messages (List[dict], optional): Previous conversation history.
-        api_order (List[str]): Order of APIs to try.
-        model_choices (Dict[str, str]): Model choice for each API.
+        model_order (List[Dict[str, str]]): List of dictionaries with provider and model.
         temperature (float): Temperature for text generation.
         max_tokens (int): Maximum number of tokens to generate.
 
@@ -310,28 +322,28 @@ def fallback_text_response(
         "perplexity": perplexity_text_response
     }
 
-    for api in api_order:
-        if api not in api_functions:
-            logging.warning(f"Unsupported API: {api}. Skipping.")
+    for entry in model_order:
+        provider = entry["provider"]
+        model = entry["model"]
+
+        if provider not in api_functions:
+            logging.warning(f"Unsupported API: {provider}. Skipping.")
             continue
 
         try:
-            response = api_functions[api](
+            response = api_functions[provider](
                 prompt=prompt,
                 system_instructions=system_instructions,
                 history_messages=history_messages,
-                model_choice=model_choices.get(api, None),
+                model_choice=model,
                 temperature=temperature,
                 max_tokens=max_tokens
             )
-            logging.info(f"Successfully generated fallback_text_response using {api} API.")
+            logging.info(f"Successfully generated fallback_text_response using {provider} API.")
             return response
         except Exception as e:
             error_code = getattr(e, 'status_code', None) or getattr(e, 'code', 'Unknown')
-            logging.error(f"Failed to generate with {api} API. Error code: {error_code}. Falling back to the next API.")
+            logging.error(f"Failed to generate with {provider} API. Error code: {error_code}. Falling back to the next API.")
             continue
 
     raise RuntimeError("All API calls failed. Unable to generate a response.")
-
-if __name__ == "__main__":
-    print(anthropic_text_response("What is the capital of Netherlands?"))
