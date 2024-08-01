@@ -272,7 +272,7 @@ def perplexity_text_response(
         logging.error(f"Response content: {e.response.text}")
         raise RuntimeError("Failed to generate response due to an internal error.")
 
-default_model_order = [
+default_fallback_model_order = [
     {
         "provider": "groq", 
         "model": "llama3.1-70b"
@@ -295,7 +295,7 @@ def fallback_text_response(
     prompt: str,
     system_instructions: str = None,
     history_messages: List[dict] = None,
-    model_order: List[Dict[str, str]] = default_model_order,
+    model_order: List[Dict[str, str]] = default_fallback_model_order,
     temperature: float = 0.2,
     max_tokens: int = 4096
 ) -> str:
