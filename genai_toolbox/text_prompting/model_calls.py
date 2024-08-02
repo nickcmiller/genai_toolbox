@@ -77,31 +77,44 @@ def openai_compatible_response(
         )
         
         if stream:
-            def stream_generator():
-                total_content = ""
-                for chunk in completion:
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        total_content += content
-                        yield content
-                end_time = time.time()
-                response_time = end_time - start_time
-                logging.info(f"API: {api}, Model: {model}, Streaming Response Time: {response_time:.2f}s, Total Content Length: {len(total_content)}")
-            return stream_generator()
+            return _stream_response(completion, api, model, start_time)
         else:
-            if not completion.choices[0].message.content:
-                raise ValueError("No valid response received from the API")
-            end_time = time.time()
-            response_time = end_time - start_time
-            logging.info(f"API: {api}, Model: {model}, Completion Usage: {completion.usage}, Response Time: {response_time:.2f}s")
-            return completion.choices[0].message.content
+            return _generate_response(completion, api, model, start_time)
     except Exception as e:
-        end_time = time.time()
-        response_time = end_time - start_time
-        error_message = f"API: {api}, Model: {model}, Error: {str(e)}, Response Time: {response_time:.2f}s"
-        logging.error(error_message)
-        traceback.print_exc()
-        raise RuntimeError(error_message)
+        _handle_error(e, api, model, start_time)
+
+def _stream_response(completion, api, model, start_time):
+    def stream_generator():
+        total_content = ""
+        for chunk in completion:
+            if chunk.choices[0].delta.content:
+                content = chunk.choices[0].delta.content
+                total_content += content
+                yield content
+        _log_response_info(api, model, start_time, len(total_content), streaming=True)
+    return stream_generator()
+
+def _generate_response(completion, api, model, start_time):
+    if not completion.choices[0].message.content:
+        raise ValueError("No valid response received from the API")
+    _log_response_info(api, model, start_time, completion.usage)
+    return completion.choices[0].message.content
+
+def _log_response_info(api, model, start_time, usage_or_length, streaming=False):
+    end_time = time.time()
+    response_time = end_time - start_time
+    if streaming:
+        logging.info(f"API: {api}, Model: {model}, Streaming Response Time: {response_time:.2f}s, Total Content Length: {usage_or_length}")
+    else:
+        logging.info(f"API: {api}, Model: {model}, Completion Usage: {usage_or_length}, Response Time: {response_time:.2f}s")
+
+def _handle_error(e, api, model, start_time):
+    end_time = time.time()
+    response_time = end_time - start_time
+    error_message = f"API: {api}, Model: {model}, Error: {str(e)}, Response Time: {response_time:.2f}s"
+    logging.error(error_message)
+    traceback.print_exc()
+    raise RuntimeError(error_message)
 
 def openai_text_response(
     prompt: str,
@@ -149,7 +162,6 @@ def openai_text_response(
         error_type = "streaming" if stream else "non-streaming"
         logging.error(f"Failed to generate {error_type} response with OpenAI: {e}")
         raise RuntimeError(f"Failed to generate {error_type} response due to an internal error.")
-
 
 def groq_text_response(
     prompt: str,
@@ -454,7 +466,11 @@ def perplexity_text_response(
         logging.error(f"Response content: {e.response.text}")
         raise RuntimeError("Failed to generate response due to an internal error.")
 
-def _perplexity_stream_response(url: str, payload: dict, headers: dict) -> Generator[str, None, None]:
+def _perplexity_stream_response(
+    url: str, 
+    payload: dict, 
+    headers: dict
+) -> Generator[str, None, None]:
     with requests.post(url, json=payload, headers=headers, stream=True) as response:
         response.raise_for_status()
         client = sseclient.SSEClient(response)
@@ -468,7 +484,11 @@ def _perplexity_stream_response(url: str, payload: dict, headers: dict) -> Gener
                 except json.JSONDecodeError:
                     logging.error(f"Failed to decode JSON: {event.data}")
 
-def _perplexity_generate_response(url: str, payload: dict, headers: dict) -> str:
+def _perplexity_generate_response(
+    url: str, 
+    payload: dict, 
+    headers: dict
+) -> str:
     response = requests.post(url, json=payload, headers=headers)
     response.raise_for_status()
     content = response.json().get('choices', [{}])[0].get('message', {}).get('content', '')
