@@ -11,5 +11,6 @@ numpy
 openai
 pydub
 python-dotenv
+sseclient-py
 trufflepig
 yt-dlp
