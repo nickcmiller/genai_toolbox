@@ -516,7 +516,7 @@ default_fallback_model_order = [
     }
 ]   
 
-def fallback_response(
+def fallback_text_response(
     prompt: str,
     system_instructions: str = None,
     history_messages: List[dict] = None,
