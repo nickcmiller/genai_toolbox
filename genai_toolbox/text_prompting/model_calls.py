@@ -129,8 +129,6 @@ def openai_text_response(
     Use OpenAI format to generate a text response using OpenAI.
     Supports both streaming and non-streaming responses.
     """
-    if stream:
-        print(f"OpenAI Stream Response: \n{prompt},\n{system_instructions}, \n{history_messages}, \n{model_choice}, \n{temperature}, \n{max_tokens}")
     
     model_choices = {
         "4o-mini": "gpt-4o-mini",
