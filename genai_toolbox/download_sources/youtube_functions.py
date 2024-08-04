@@ -100,19 +100,23 @@ def retrieve_youtube_channel_and_video_metadata_by_date(
     api_key: str, 
     channel_id: str, 
     start_date: Optional[str] = None, 
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    short_duration: int = 10*60
 ) -> List[Dict]:
     youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=api_key)
 
     try:
         channel_metadata = _get_channel_metadata(youtube, channel_id)
-        video_metadata = _get_video_metadata(youtube, channel_metadata, start_date, end_date)
+        video_metadata = _get_video_metadata(youtube, channel_metadata, start_date, end_date, short_duration)
         return video_metadata
     except HttpError as e:
         logger.error(f"An HTTP error occurred: {e}")
         raise
 
-def _get_channel_metadata(youtube: Resource, channel_id: str) -> Dict:
+def _get_channel_metadata(
+    youtube: Resource, 
+    channel_id: str
+) -> Dict:
     try:
         channel_response = youtube.channels().list(
             part="snippet,brandingSettings,contentDetails",
@@ -138,7 +142,8 @@ def _get_video_metadata(
     youtube: Resource, 
     channel_metadata: Dict, 
     start_date: Optional[str] = None, 
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    short_duration: int = 10*60
 ) -> List[Dict]:
     video_metadata = []
     published_after = get_date_with_timezone(start_date) if start_date else None
@@ -166,7 +171,7 @@ def _get_video_metadata(
                     
                     if video_response["items"]:
                         duration = video_response["items"][0]["contentDetails"]["duration"]
-                        if not _is_short_video(duration):
+                        if not _is_short_video(duration, short_duration):
                             video_info = {
                                 "video_id": video_id,
                                 "title": item["snippet"]["title"],
@@ -186,7 +191,10 @@ def _get_video_metadata(
 
     return video_metadata
 
-def _is_short_video(duration: str) -> bool:
+def _is_short_video(
+    duration: str,
+    short_duration: int = 10*60
+) -> bool:
     """
     Check if a video is a Short based on its duration.
     YouTube Shorts are typically 60 seconds or less.
@@ -194,7 +202,7 @@ def _is_short_video(duration: str) -> bool:
     try:
         duration_timedelta = isodate.parse_duration(duration)
         total_seconds = duration_timedelta.total_seconds()
-        return total_seconds <= 60
+        return total_seconds <= short_duration
     except isodate.ISO8601Error:
         logging.warning(f"Invalid duration format: {duration}")
         return False
