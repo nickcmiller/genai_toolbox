@@ -264,10 +264,13 @@ if __name__ == "__main__":
 
     api_key = os.getenv("YOUTUBE_API_KEY")
     channel_id = "UCyaN6mg5u8Cjy2ZI4ikWaug"
-    start_date = "2024-06-20" 
-    end_date = "2024-07-01" 
+    start_date = "2024-02-01" 
+    end_date = "2024-03-01" 
 
     video_metadata = retrieve_youtube_channel_and_video_metadata_by_date(api_key, channel_id, start_date, end_date)
 
+    print(f"Number of videos found: {len(video_metadata)}")
     for video in video_metadata:
-        print(json.dumps(video, indent=4))
+        # print(json.dumps(video, indent=4))
+        formatted_date = datetime.fromisoformat(video['published'][:-1]).strftime('%Y-%m-%d %H:%M:%S')
+        print(f"{formatted_date} - {video['title']}")

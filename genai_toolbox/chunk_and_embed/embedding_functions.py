@@ -5,6 +5,48 @@ import tiktoken
 from typing import Dict, Callable
 import concurrent.futures
 import logging
+import time
+import asyncio
+
+class RateLimiter:
+    """
+        RateLimiter
+
+        A class to manage the rate limiting of API calls or other operations that require 
+        controlling the frequency of execution. This is particularly useful in scenarios 
+        where you need to adhere to a specific rate limit imposed by an external service.
+
+        Attributes:
+            rate_limit (int): The maximum number of operations allowed within the specified time unit.
+            time_unit (int): The time period (in seconds) over which the rate limit is applied.
+            tokens (float): The current number of available tokens, which represent the number of operations 
+                            that can be performed.
+            last_refill (float): The timestamp of the last time the tokens were refilled.
+
+        Methods:
+            wait_for_token():
+                Asynchronously waits for a token to become available, ensuring that the rate limit is not exceeded.
+                If no tokens are available, it will pause execution until a token can be obtained.
+    """
+    def __init__(self, rate_limit, time_unit=60):
+        self.rate_limit = rate_limit
+        self.time_unit = time_unit
+        self.tokens = rate_limit
+        self.last_refill = time.time()
+
+    async def wait_for_token(self):
+        current_time = time.time()
+        time_passed = current_time - self.last_refill
+        self.tokens += time_passed * (self.rate_limit / self.time_unit)
+        self.tokens = min(self.tokens, self.rate_limit)
+        self.last_refill = current_time
+
+        if self.tokens < 1:
+            await asyncio.sleep(1 / (self.rate_limit / self.time_unit))
+            return await self.wait_for_token()
+
+        self.tokens -= 1
+        return
 
 # Similarity Metrics
 def cosine_similarity(
@@ -44,6 +86,11 @@ def create_openai_embedding(
     text: str, 
     client = openai_client()
 ) -> Dict:
+    """
+        create_openai_embedding
+
+        This function creates an embedding for a given text using the OpenAI API.
+    """
     response = client.embeddings.create(
         input=text, 
         model=model_choice
@@ -150,69 +197,177 @@ def create_embedding_for_dict(
     result_dict = {**chunk_dict, "embedding": embedding}
     return result_dict
 
+async def create_embedding_for_dict_async(
+    embedding_function: Callable,
+    chunk_dict: dict,
+    key_to_embed: str = "text",
+    model_choice: str = "text-embedding-3-large",
+    rate_limiter: RateLimiter = None
+) -> dict:
+    """
+        Asynchronously creates an embedding for a given dictionary using the specified embedding function.
+
+        This function takes a dictionary (chunk_dict) and generates an embedding for the text specified by 
+        the key_to_embed. It also handles rate limiting to ensure that the number of API calls does not exceed 
+        the specified limit.
+
+        Args:
+            embedding_function (Callable): A callable function that generates embeddings. This function should 
+                                        accept the parameters model_choice and text.
+            chunk_dict (dict): A dictionary containing the data from which the embedding will be created. 
+                            It must include the key specified by key_to_embed.
+            key_to_embed (str, optional): The key in chunk_dict whose value will be embedded. Defaults to "text".
+            model_choice (str, optional): The identifier for the embedding model to be used. Defaults to 
+                                        "text-embedding-3-large".
+            rate_limiter (RateLimiter, optional): An instance of RateLimiter to manage API call frequency. 
+                                                If None, no rate limiting will be applied.
+
+        Returns:
+            dict: A new dictionary that includes all the original key-value pairs from chunk_dict, 
+                along with a new key "embedding" that contains the generated embedding.
+
+        Raises:
+            KeyError: If the specified key_to_embed is not found in chunk_dict.
+            ValueError: If the embedding_function is not callable.
+
+        Logging:
+            If the text to be embedded is empty or consists only of whitespace, a warning is logged 
+            indicating that the chunk_dict is being skipped.
+
+        Example:
+            >>> chunk = {"text": "This is a sample text."}
+            >>> embedding_result = await create_embedding_for_dict_async(create_openai_embedding, chunk)
+            >>> print(embedding_result)
+            {
+                "text": "This is a sample text.",
+                "embedding": [0.1, 0.2, 0.3, ...]  # Example embedding vector
+            }
+    """
+    if rate_limiter:
+        await rate_limiter.wait_for_token()
+
+    if key_to_embed not in chunk_dict:
+        raise KeyError(f"The '{key_to_embed}' key is missing from the chunk_dict.")
+    
+    text = chunk_dict[key_to_embed]
+    if not text or not text.strip():
+        logging.warning(f"Skipping chunk_dict due to empty text: {chunk_dict}")
+        return None
+
+    if not isinstance(embedding_function, Callable):
+        raise ValueError("The 'embedding_function' argument must be a callable object.")
+
+    embedding = await asyncio.to_thread(
+        embedding_function,
+        model_choice=model_choice,
+        text=text
+    )
+
+    result_dict = {**chunk_dict, "embedding": embedding}
+    return result_dict
+
+async def embed_dict_list_async(
+    embedding_function: Callable,
+    chunk_dicts: list[dict],
+    key_to_embed: str = "text",
+    model_choice: str = "text-embedding-3-large",
+    max_workers: int = 25,
+    rate_limit: int = 5000
+) -> list[dict]:
+    """
+        Asynchronously embeds a list of dictionaries using the specified embedding function.
+
+        This function takes a list of dictionaries and applies an embedding function to each dictionary's 
+        specified key, generating embeddings for the text contained in that key. It utilizes a rate limiter 
+        to ensure that the number of API calls does not exceed the specified limit.
+
+        Args:
+            embedding_function (Callable): A callable function that generates embeddings for the given text.
+            chunk_dicts (list[dict]): A list of dictionaries, each containing the text to be embedded.
+            key_to_embed (str, optional): The key in each dictionary that contains the text to be embedded. 
+                                        Defaults to "text".
+            model_choice (str, optional): The model to be used for generating embeddings. Defaults to 
+                                        "text-embedding-3-large".
+            max_workers (int, optional): The maximum number of concurrent workers for processing. Defaults to 25.
+            rate_limit (int, optional): The maximum number of API calls allowed within a specified time unit. 
+                                        Defaults to 5000.
+
+        Returns:
+            list[dict]: A list of dictionaries, each containing the original data along with a new key "embedding" 
+                        that contains the generated embedding.
+
+        Raises:
+            KeyError: If the specified key_to_embed is not found in any of the chunk_dicts.
+            ValueError: If the embedding_function is not callable.
+
+        Logging:
+            If the text to be embedded is empty or consists only of whitespace, a warning is logged 
+            indicating that the chunk_dict is being skipped.
+
+        Example:
+            >>> chunks = [{"text": "This is a sample text."}, {"text": "Another sample."}]
+            >>> embeddings = await embed_dict_list_async(create_openai_embedding, chunks)
+            >>> print(embeddings)
+            [
+                {"text": "This is a sample text.", "embedding": [0.1, 0.2, 0.3, ...]},
+                {"text": "Another sample.", "embedding": [0.4, 0.5, 0.6, ...]}
+            ]
+    """
+    rate_limiter = RateLimiter(rate_limit)
+    
+    async def process_chunk(chunk_dict):
+        return await create_embedding_for_dict_async(
+            embedding_function=embedding_function,
+            chunk_dict=chunk_dict,
+            key_to_embed=key_to_embed,
+            model_choice=model_choice,
+            rate_limiter=rate_limiter
+        )
+
+    tasks = [process_chunk(chunk_dict) for chunk_dict in chunk_dicts]
+    results = await asyncio.gather(*tasks)
+    
+    return [result for result in results if result is not None]
+
 def embed_dict_list(
     embedding_function: Callable,
     chunk_dicts: list[dict],
     key_to_embed: str = "text",
     model_choice: str = "text-embedding-3-large",
-    max_workers: int = 25
+    max_workers: int = 25,
+    rate_limit: int = 5000
 ) -> list[dict]:
-    """
-        embed_dict_list function
+    return asyncio.run(embed_dict_list_async(
+        embedding_function=embedding_function,
+        chunk_dicts=chunk_dicts,
+        key_to_embed=key_to_embed,
+        model_choice=model_choice,
+        max_workers=max_workers,
+        rate_limit=rate_limit
+    ))
 
-        This function takes a list of dictionaries and generates embeddings for each dictionary 
-        using the specified embedding function. It utilizes a ThreadPoolExecutor to perform 
-        the embedding process concurrently, allowing for efficient processing of multiple 
-        dictionaries at once.
-
-        Parameters:
-            embedding_function (Callable): A callable function that generates embeddings. 
-                                            This function should accept a model_choice and text 
-                                            as parameters and return the corresponding embedding.
-            chunk_dicts (list[dict]): A list of dictionaries, each containing the data for which 
-                                    embeddings need to be generated. Each dictionary should 
-                                    include a key specified by the key_to_embed parameter.
-            key_to_embed (str, optional): The key in each dictionary whose value will be used 
-                                        for generating the embedding. Defaults to "text".
-            model_choice (str, optional): The identifier for the embedding model to be used. 
-                                        Defaults to "text-embedding-3-small".
-            max_workers (int, optional): The maximum number of threads to use for concurrent 
-                                        processing. Defaults to 25.
-
-        Returns:
-            list[dict]: A list of dictionaries, each containing the original key-value pairs 
-                        from the input dictionaries along with a new key "embedding" that 
-                        contains the generated embedding.
-
-        Raises:
-            ValueError: If the embedding_function is not callable.
-
-        Logging:
-            - If any chunk_dict is not processed due to an error, a warning is logged.
-
-        Example:
-            >>> chunks = [{"text": "This is a sample text."}, {"text": "Another sample text."}]
-            >>> embeddings = embed_dict_list(create_openai_embedding, chunks)
-            >>> print(embeddings)
-            [
-                {"text": "This is a sample text.", "embedding": [0.1, 0.2, 0.3, ...]},
-                {"text": "Another sample text.", "embedding": [0.4, 0.5, 0.6, ...]}
-            ]
-    """
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [
-            executor.submit(
-                create_embedding_for_dict,
-                embedding_function=embedding_function,
-                chunk_dict=chunk_dict,
-                key_to_embed=key_to_embed,
-                model_choice=model_choice
-            )
-            for chunk_dict in chunk_dicts
-        ]
-        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+# def embed_dict_list(
+#     embedding_function: Callable,
+#     chunk_dicts: list[dict],
+#     key_to_embed: str = "text",
+#     model_choice: str = "text-embedding-3-large",
+#     max_workers: int = 25
+# ) -> list[dict]:
+#     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+#         futures = [
+#             executor.submit(
+#                 create_embedding_for_dict,
+#                 embedding_function=embedding_function,
+#                 chunk_dict=chunk_dict,
+#                 key_to_embed=key_to_embed,
+#                 model_choice=model_choice
+#             )
+#             for chunk_dict in chunk_dicts
+#         ]
+#         results = [future.result() for future in concurrent.futures.as_completed(futures)]
     
-    return [result for result in results if result is not None]
+#     return [result for result in results if result is not None]
+
 
 def add_similarity_to_next_dict_item(
     chunk_dicts: list[dict],
