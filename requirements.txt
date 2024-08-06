@@ -12,5 +12,6 @@ openai
 pydub
 python-dotenv
 sseclient-py
+tiktoken
 trufflepig
 yt-dlp
