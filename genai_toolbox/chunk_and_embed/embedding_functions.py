@@ -413,20 +413,33 @@ def find_similar_chunks(
     chunks_with_embeddings: list[dict], 
     embedding_function: Callable = create_openai_embedding,
     model_choice: str = "text-embedding-3-large",
-    threshold: float = 0.4,
-    max_returned_chunks: int = 10,
+    similarity_threshold: float = 0.30,
+    filter_limit: int = 10,
+    max_similarity_delta: float = 0.075,
 ) -> list[dict]:
     query_embedding = embedding_function(text=query, model_choice=model_choice)
 
     similar_chunks = []
     for chunk in chunks_with_embeddings:
         similarity = cosine_similarity(query_embedding, chunk['embedding'])
-        if similarity > threshold:
+        if similarity > similarity_threshold:
             chunk['similarity'] = similarity
             similar_chunks.append(chunk)
-        
+    
+    logging.info(f"Found {len(similar_chunks)} similar chunks")
+    
+    if len(similar_chunks) == 0:
+        return []
+    
     similar_chunks.sort(key=lambda x: x['similarity'], reverse=True)
-    top_chunks = similar_chunks[0:max_returned_chunks]
-    no_embedding_key_chunks = [{k: v for k, v in chunk.items() if k != 'embedding'} for chunk in top_chunks]
+    
+    max_similarity = max(row['similarity'] for row in similar_chunks)
+    filtered_rows = [row for row in similar_chunks if max_similarity - row['similarity'] <= max_similarity_delta]
+    logging.info(f"Filtered to {len(filtered_rows)}")
+    
+    limited_rows = filtered_rows[:filter_limit]
+    logging.info(f"Limited to {len(limited_rows)}")
+    
+    no_embedding_key_chunks = [{k: v for k, v in chunk.items() if k != 'embedding'} for chunk in filtered_rows]
     
     return no_embedding_key_chunks

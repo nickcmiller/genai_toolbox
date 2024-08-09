@@ -132,7 +132,7 @@ def openai_text_response(
     
     model_choices = {
         "4o-mini": "gpt-4o-mini",
-        "4o": "gpt-4o",
+        "4o": "gpt-4o-2024-08-06",
         "4": "gpt-4-turbo",
         "3.5": "gpt-3.5-turbo",
     }
