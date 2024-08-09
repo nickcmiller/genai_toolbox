@@ -24,10 +24,6 @@ def llm_response_with_query(
                 "model": "llama3.1-70b"
             },
             {
-                "provider": "perplexity", 
-                "model": "llama3.1-70b"
-            },
-            {
                 "provider": "openai", 
                 "model": "4o-mini"
             },
