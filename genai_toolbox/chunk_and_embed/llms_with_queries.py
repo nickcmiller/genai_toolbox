@@ -63,6 +63,7 @@ def llm_response_with_query(
 def stream_response_with_query(
     similar_chunks: List[Dict[str, Any]],
     question: str,
+    history_messages: List[Dict[str, str]] = None,
     llm_system_prompt: str = llm_system_prompt_default,
     source_template: str = "Title: '{title}',\nText: '{text}'\n",
     template_args: dict = {"title": "title", "text": "text"},
@@ -102,6 +103,7 @@ def stream_response_with_query(
     prompt = f"Question: {question}\n\nSources:\n{20*'-'}\n{20*'-'}\n {sources}"
     llm_response = fallback_text_response(
         prompt, 
+        history_messages=history_messages,
         system_instructions=llm_system_prompt, 
         model_order=llm_model_order,
         stream=True

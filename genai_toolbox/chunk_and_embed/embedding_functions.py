@@ -440,6 +440,6 @@ def find_similar_chunks(
     limited_rows = filtered_rows[:filter_limit]
     logging.info(f"Limited to {len(limited_rows)}")
     
-    no_embedding_key_chunks = [{k: v for k, v in chunk.items() if k != 'embedding'} for chunk in filtered_rows]
+    no_embedding_key_chunks = [{k: v for k, v in chunk.items() if k != 'embedding'} for chunk in limited_rows]
     
     return no_embedding_key_chunks
