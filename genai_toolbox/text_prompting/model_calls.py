@@ -177,6 +177,7 @@ def groq_text_response(
     model_choices = {
         "llama3-8b": "llama3-8b-8192",
         "llama3-70b": "llama3-70b-8192",
+        "llama3.1-8b": "llama-3.1-8b-instant",
         "llama3.1-70b": "llama-3.1-70b-versatile",
         "llama3.1-405b": "llama-3.1-405b-reasoning",
         "mixtral-8x7b": "mixtral-8x7b-32768",
