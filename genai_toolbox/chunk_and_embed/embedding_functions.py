@@ -2,7 +2,7 @@ from genai_toolbox.clients.openai_client import openai_client
 
 import tiktoken
 
-from typing import Dict, Callable
+from typing import Dict, Callable, Optional, List
 import concurrent.futures
 import logging
 import time
@@ -202,7 +202,8 @@ async def create_embedding_for_dict_async(
     chunk_dict: dict,
     key_to_embed: str = "text",
     model_choice: str = "text-embedding-3-large",
-    rate_limiter: RateLimiter = None
+    rate_limiter: RateLimiter = None,
+    metadata_keys: Optional[List[str]] = None
 ) -> dict:
     """
         Asynchronously creates an embedding for a given dictionary using the specified embedding function.
@@ -221,6 +222,8 @@ async def create_embedding_for_dict_async(
                                         "text-embedding-3-large".
             rate_limiter (RateLimiter, optional): An instance of RateLimiter to manage API call frequency. 
                                                 If None, no rate limiting will be applied.
+            metadata_keys (list[str], optional): A list of keys in chunk_dict to be appended to the text.
+                                        Defaults to None.
 
         Returns:
             dict: A new dictionary that includes all the original key-value pairs from chunk_dict, 
@@ -254,6 +257,11 @@ async def create_embedding_for_dict_async(
         logging.warning(f"Skipping chunk_dict due to empty text: {chunk_dict}")
         return None
 
+    if metadata_keys:
+        metadata_lines = "\n".join(f"{key}: {chunk_dict.get(key, '')}" for key in metadata_keys if key in chunk_dict)
+        if metadata_lines:
+            text += "\n" + metadata_lines
+
     if not isinstance(embedding_function, Callable):
         raise ValueError("The 'embedding_function' argument must be a callable object.")
 
@@ -272,7 +280,8 @@ async def embed_dict_list_async(
     key_to_embed: str = "text",
     model_choice: str = "text-embedding-3-large",
     max_workers: int = 25,
-    rate_limit: int = 5000
+    rate_limit: int = 5000,
+    metadata_keys: Optional[List[str]] = None
 ) -> list[dict]:
     """
         Asynchronously embeds a list of dictionaries using the specified embedding function.
@@ -291,6 +300,8 @@ async def embed_dict_list_async(
             max_workers (int, optional): The maximum number of concurrent workers for processing. Defaults to 25.
             rate_limit (int, optional): The maximum number of API calls allowed within a specified time unit. 
                                         Defaults to 5000.
+            metadata_keys (list[str], optional): A list of keys in chunk_dict to be appended to the text.
+                                        Defaults to None.
 
         Returns:
             list[dict]: A list of dictionaries, each containing the original data along with a new key "embedding" 
@@ -321,7 +332,8 @@ async def embed_dict_list_async(
             chunk_dict=chunk_dict,
             key_to_embed=key_to_embed,
             model_choice=model_choice,
-            rate_limiter=rate_limiter
+            rate_limiter=rate_limiter,
+            metadata_keys=metadata_keys
         )
 
     tasks = [process_chunk(chunk_dict) for chunk_dict in chunk_dicts]
@@ -335,7 +347,8 @@ def embed_dict_list(
     key_to_embed: str = "text",
     model_choice: str = "text-embedding-3-large",
     max_workers: int = 25,
-    rate_limit: int = 5000
+    rate_limit: int = 5000,
+    metadata_keys: Optional[List[str]] = None
 ) -> list[dict]:
     return asyncio.run(embed_dict_list_async(
         embedding_function=embedding_function,
@@ -343,7 +356,8 @@ def embed_dict_list(
         key_to_embed=key_to_embed,
         model_choice=model_choice,
         max_workers=max_workers,
-        rate_limit=rate_limit
+        rate_limit=rate_limit,
+        metadata_keys=metadata_keys
     ))
 
 # def embed_dict_list(
@@ -414,9 +428,51 @@ def find_similar_chunks(
     embedding_function: Callable = create_openai_embedding,
     model_choice: str = "text-embedding-3-large",
     similarity_threshold: float = 0.30,
-    filter_limit: int = 10,
+    filter_limit: int = 15,
     max_similarity_delta: float = 0.075,
 ) -> list[dict]:
+    """
+        Find similar chunks based on a query string by calculating the cosine similarity 
+        between the query's embedding and the embeddings of the provided chunks.
+
+        This function generates an embedding for the given query using the specified 
+        embedding function and model choice. It then compares this embedding against 
+        the embeddings of the chunks to find those that exceed a defined similarity 
+        threshold. The results are sorted by similarity, and a limited number of 
+        similar chunks are returned based on the specified filter limit and maximum 
+        similarity delta.
+
+        Args:
+            query (str): The input query string for which similar chunks are to be found.
+            chunks_with_embeddings (list[dict]): A list of dictionaries, each containing 
+                                                an 'embedding' key representing the 
+                                                chunk's embedding.
+            embedding_function (Callable): A callable function that generates embeddings 
+                                        for the given text. Defaults to 
+                                        create_openai_embedding.
+            model_choice (str): The model to be used for generating embeddings. Defaults to 
+                                "text-embedding-3-large".
+            similarity_threshold (float): The minimum similarity score for a chunk to be 
+                                        considered similar. Defaults to 0.30.
+            filter_limit (int): The maximum number of similar chunks to return. Defaults to 15.
+            max_similarity_delta (float): The maximum allowed difference in similarity 
+                                        between the most similar chunk and the others 
+                                        to be included in the results. Defaults to 0.075.
+
+        Returns:
+            list[dict]: A list of dictionaries containing the similar chunks, each with 
+                        an added 'similarity' key indicating the similarity score.
+
+        Example:
+            >>> query = "What is the capital of France?"
+            >>> chunks = [{"embedding": [0.1, 0.2, 0.3]}, {"embedding": [0.4, 0.5, 0.6]}]
+            >>> similar_chunks = find_similar_chunks(query, chunks)
+            >>> print(similar_chunks)
+            [
+                {"embedding": [0.1, 0.2, 0.3], "similarity": 0.9},
+                {"embedding": [0.4, 0.5, 0.6], "similarity": 0.9}
+            ]
+    """
     query_embedding = embedding_function(text=query, model_choice=model_choice)
 
     similar_chunks = []
@@ -432,14 +488,14 @@ def find_similar_chunks(
         return []
     
     similar_chunks.sort(key=lambda x: x['similarity'], reverse=True)
-    
+
+    limited_rows = similar_chunks[:filter_limit]
+    logging.info(f"Limited to {len(limited_rows)}")
+
     max_similarity = max(row['similarity'] for row in similar_chunks)
-    filtered_rows = [row for row in similar_chunks if max_similarity - row['similarity'] <= max_similarity_delta]
+    filtered_rows = [row for row in limited_rows if max_similarity - row['similarity'] <= max_similarity_delta]
     logging.info(f"Filtered to {len(filtered_rows)}")
     
-    limited_rows = filtered_rows[:filter_limit]
-    logging.info(f"Limited to {len(limited_rows)}")
-    
-    no_embedding_key_chunks = [{k: v for k, v in chunk.items() if k != 'embedding'} for chunk in limited_rows]
+    no_embedding_key_chunks = [{k: v for k, v in chunk.items() if k != 'embedding'} for chunk in filtered_rows]
     
     return no_embedding_key_chunks
