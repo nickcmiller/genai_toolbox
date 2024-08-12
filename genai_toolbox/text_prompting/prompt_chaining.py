@@ -106,44 +106,42 @@ def execute_prompt_dict(
     max_tokens: int = default_max_tokens
 ) -> List[str]:
     """
-    Execute a single prompt dictionary on a list of modified and original strings.
+        Execute a single prompt dictionary on a list of modified and original strings.
 
-    This function processes the given strings using the specified prompt configuration,
-    concatenates the modified and original strings, and then applies the prompt to the result.
+        This function processes the given strings using the specified prompt configuration,
+        concatenates the modified and original strings, and then applies the prompt to the result.
 
-    Args:
-        modified_strings (List[str]): A list of previously modified strings.
-        original_strings (List[str]): A list of original input strings.
-        prompt (dict): A dictionary containing prompt configuration:
-            - provider (str): The name of the AI provider (e.g., "openai").
-            - instructions (str): The instructions for the prompt.
-            - model_choice (str, optional): The specific model to use.
-        concatenation_delimiter (str): The delimiter used to separate concatenated strings.
+        Args:
+            modified_strings (List[str]): A list of previously modified strings.
+            original_strings (List[str]): A list of original input strings.
+            prompt (dict): A dictionary containing prompt configuration:
+                - provider (str): The name of the AI provider (e.g., "openai").
+                - instructions (str): The instructions for the prompt.
+                - model_choice (str, optional): The specific model to use.
+            concatenation_delimiter (str): The delimiter used to separate concatenated strings.
 
-    Returns:
-        List[str]: A list of strings after applying the prompt.
+        Returns:
+            List[str]: A list of strings after applying the prompt.
 
-    Example:
-        modified_strings = ["Summary of chapter 1", "Summary of chapter 2"]
-        original_strings = ["Full text of chapter 1", "Full text of chapter 2"]
-        prompt = {
-            "provider": "openai",
-            "instructions": "Enhance the summary with more details from the original text.",
-            "model_choice": "gpt-4"
-        }
-        concatenation_delimiter = "\n---\n"
-        
-        >>> print(execute_prompt_dict(modified_strings, original_strings, prompt, delimiter))
-        [
-            "Enhanced summary of chapter 1 with more details", 
-            "Enhanced summary of chapter 2 with more details"
-        ]
+        Example:
+            modified_strings = ["Summary of chapter 1", "Summary of chapter 2"]
+            original_strings = ["Full text of chapter 1", "Full text of chapter 2"]
+            prompt = {
+                "provider": "openai",
+                "instructions": "Enhance the summary with more details from the original text.",
+                "model_choice": "gpt-4"
+            }
+            concatenation_delimiter = "\n---\n"
+            
+            >>> print(execute_prompt_dict(modified_strings, original_strings, prompt, delimiter))
+            [
+                "Enhanced summary of chapter 1 with more details", 
+                "Enhanced summary of chapter 2 with more details"
+            ]
 
-
-
-    Raises:
-        ValueError: If the prompt dictionary is missing required keys.
-        Exception: Any exception raised during the execution of the prompt.
+        Raises:
+            ValueError: If the prompt dictionary is missing required keys.
+            Exception: Any exception raised during the execution of the prompt.
     """
     provider = Provider[prompt["provider"].upper()]
     instructions = prompt["instructions"] 
