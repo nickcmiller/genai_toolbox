@@ -95,10 +95,10 @@ def stream_response_with_query(
             raise ValueError("Each chunk in query_response must contain 'title' and 'text' keys")
 
     sources = ""
-    for chunk in similar_chunks:
+    for i,chunk in enumerate(similar_chunks):
         format_args = {key: chunk.get(arg, f"No {key} Provided") for key, arg in template_args.items()}
         formatted_source = source_template.format(**format_args)
-        sources += f"{20*'-'}\n{formatted_source}\n{20*'-'}"
+        sources += f"{20*'-'}\nSource{i+1}: {formatted_source}\n{20*'-'}"
 
     prompt = f"Question: {question}\n\nSources:\n{20*'-'}\n{20*'-'}\n {sources}"
     llm_response = fallback_text_response(
