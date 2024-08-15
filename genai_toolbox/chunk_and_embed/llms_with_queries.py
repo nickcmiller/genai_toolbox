@@ -15,24 +15,29 @@ Give a detailed answer.
 def llm_response_with_query(
     similar_chunks: List[Dict[str, Any]],
     question: str,
+    history_messages: List[Dict[str, str]] = None,
     llm_system_prompt: str = llm_system_prompt_default,
     source_template: str = "Title: '{title}',\nText: '{text}'\n",
     template_args: dict = {"title": "title", "text": "text"},
     llm_model_order: List[Dict[str, str]] = [
-            {
-                "provider": "groq", 
-                "model": "llama3.1-70b"
-            },
-            {
-                "provider": "openai", 
-                "model": "4o-mini"
-            },
-            {
-                "provider": "anthropic", 
-                "model": "sonnet"
-            }
-        ],
-) -> Dict[str, Any]:
+        {
+            "provider": "openai", 
+            "model": "4o-mini"
+        },
+        {
+            "provider": "groq", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "perplexity", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "anthropic", 
+            "model": "sonnet"
+        }
+    ],
+) -> str:
 
     if len(similar_chunks) == 0:
         return "Sources are not relevant enough to answer this question"
@@ -51,14 +56,12 @@ def llm_response_with_query(
     prompt = f"Question: {question}\n\nSources:\n{20*'-'}\n{20*'-'}\n {sources}"
     llm_response = fallback_text_response(
         prompt, 
+        history_messages=history_messages,
         system_instructions=llm_system_prompt, 
         model_order=llm_model_order
     )
 
-    return {
-        "llm_response": llm_response,
-        "similar_chunks": similar_chunks
-    }
+    return llm_response
 
 def stream_response_with_query(
     similar_chunks: List[Dict[str, Any]],
@@ -68,23 +71,23 @@ def stream_response_with_query(
     source_template: str = "Title: '{title}',\nText: '{text}'\n",
     template_args: dict = {"title": "title", "text": "text"},
     llm_model_order: List[Dict[str, str]] = [
-            {
-                "provider": "openai", 
-                "model": "4o-mini"
-            },
-            {
-                "provider": "groq", 
-                "model": "llama3.1-70b"
-            },
-            {
-                "provider": "perplexity", 
-                "model": "llama3.1-70b"
-            },
-            {
-                "provider": "anthropic", 
-                "model": "sonnet"
-            }
-        ],
+        {
+            "provider": "openai", 
+            "model": "4o-mini"
+        },
+        {
+            "provider": "groq", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "perplexity", 
+            "model": "llama3.1-70b"
+        },
+        {
+            "provider": "anthropic", 
+            "model": "sonnet"
+        }
+    ],
 ) -> str:
     if len(similar_chunks) == 0:
         return "Sources are not relevant enough to answer this question"
