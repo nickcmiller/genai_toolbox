@@ -143,6 +143,7 @@ def execute_prompt_dict(
         original_strings, 
         delimiter=concatenation_delimiter
     )
+
     return prompt_string_list(
         string_list=modified_strings,
         instructions=instructions,
@@ -152,7 +153,7 @@ def execute_prompt_dict(
         max_tokens=max_tokens
     )
 
-def revise_with_prompt_list(
+def revise_list_with_prompt_list(
     string_list: List[str],
     prompt_list: List[dict],
     concatenation_delimiter: str = f"\n{'-'*10}\n",
@@ -222,6 +223,32 @@ def revise_with_prompt_list(
     return {
         "modified_string_list": modified_strings, 
         "revision_dict": revision_dict
+    }
+
+def revise_string_with_prompt_list(
+    string: str,
+    prompt_list: List[dict],
+    concatenation_delimiter: str = f"\n{'-'*10}\n",
+    temperature: float = default_temperature,
+    max_tokens: int = default_max_tokens
+) -> dict:
+    
+    response = revise_list_with_prompt_list(
+        string_list=[string],
+        prompt_list=prompt_list,
+        concatenation_delimiter=concatenation_delimiter,
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+    revision_dict = response["revision_dict"]
+    new_revision_dict = {}
+    
+    for k, v in revision_dict.items():
+        new_revision_dict[k] = v[0]
+
+    return {
+        "modified_string": response["modified_string_list"][0],
+        "revision_dict": new_revision_dict
     }
 
 

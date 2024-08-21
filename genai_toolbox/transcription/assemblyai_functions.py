@@ -1,6 +1,5 @@
 from genai_toolbox.text_prompting.model_calls import groq_text_response, openai_text_response, anthropic_text_response, fallback_text_response
 from genai_toolbox.helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file, retrieve_file
-from genai_toolbox.text_prompting.prompt_chaining import revise_with_prompt_list
 
 import assemblyai as aai
 import openai
@@ -445,26 +444,3 @@ def generate_assemblyai_transcript_with_speakers(
     )
 
     return replaced_dict['transcript']
-
-def summarize_transcript( 
-    transcript: str, 
-    prompt_list: List[Dict],
-    system_instructions: str = None,
-    model_order: Optional[List[dict]] = None
-) -> str:
-    
-    if not system_instructions:
-        system_instructions = "You are an expert at outlining and transcribing transcripts."
-
-    try:
-        summary = revise_with_prompt_list(
-            string_list=[transcript],
-            prompt_list=prompt_list,
-            concatenation_delimiter=f"\n{'-'*3}\nTranscript:\n{'-'*3}\n",
-            temperature=0.2,
-            max_tokens=4096
-        )
-    except Exception as e:
-        raise ValueError(f"Failed to obtain a valid transcript summary after maximum attempts.")
-
-    return summary

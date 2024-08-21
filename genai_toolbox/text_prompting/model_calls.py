@@ -402,7 +402,7 @@ def _anthropic_generate_response(
     end_time = time.time()
     response_time = end_time - start_time
     logging.info(f"API: Anthropic, Model: {model}, Response Time: {response_time:.2f}s")
-    return completion.content
+    return completion.content[0].text
 
 def perplexity_text_response(
     prompt: str,
@@ -558,6 +558,7 @@ def fallback_text_response(
             continue
 
         try:
+            start_time = time.time()
             response = api_functions[provider](
                 prompt=prompt,
                 system_instructions=system_instructions,
@@ -567,7 +568,9 @@ def fallback_text_response(
                 max_tokens=max_tokens,
                 stream=stream
             )
-            logging.info(f"Successfully generated {'streaming' if stream else ''} response using {provider} API.")
+            end_time = time.time()
+            response_time = end_time - start_time
+            logging.info(f"fallback_text_response generated{' streaming' if stream else ''} response using {provider} API. Response Time: {response_time:.2f}s")
             
             if stream:
                 return (chunk for chunk in response)
