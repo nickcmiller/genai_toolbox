@@ -1,24 +1,18 @@
-import os
-import sys
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
-
-from text_prompting.model_calls import groq_text_response, openai_text_response, anthropic_text_response, fallback_text_response
-from helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file, retrieve_file
+from genai_toolbox.text_prompting.model_calls import groq_text_response, openai_text_response, anthropic_text_response, fallback_text_response
+from genai_toolbox.helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file, retrieve_file
+from genai_toolbox.text_prompting.prompt_chaining import revise_with_prompt_list
 
 import assemblyai as aai
 import openai
 from dotenv import load_dotenv
-from typing import List, Dict
+from typing import List, Dict, Optional
 
+import os
 import logging
 import traceback
 import re
 import copy
 from pathlib import Path
-
-logging.basicConfig(level=logging.INFO)
-load_dotenv(os.path.join(root_dir, '.env'))
 
 aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
 
@@ -209,7 +203,6 @@ def create_text_transcript(
             Speaker B: I'm good, thanks!
     """
     try:
-        # Check if utterances have the required fields
         for utterance in utterances:
             if 'speaker' not in utterance or 'text' not in utterance:
                 raise ValueError("Each utterance must contain 'speaker' and 'text' fields.")
@@ -283,7 +276,7 @@ def identify_speakers(
         {transcript}
     """
 
-    speaker_references_system_prompt = "You are a helpful assistant that helps me identify the speakers in a YouTube video."
+    speaker_references_system_prompt = "You are a trained specialist that accurately identifies the speakers in a transcript."
 
     model_order = [
         {
@@ -412,7 +405,6 @@ def replace_speakers_in_utterances(
 
     return new_utterances
 
-
 def replace_speakers_in_assemblyai_utterances(
     utterances: dict,
     summary: str,
@@ -446,15 +438,33 @@ def generate_assemblyai_transcript_with_speakers(
     output_dir_name: str = None
 ) -> str:
     transcribed_utterances = generate_assemblyai_utterances(audio_file_path)
-    replaced_utterances = replace_speakers_in_assemblyai_utterances(
+    replaced_dict = replace_speakers_in_assemblyai_utterances(
         transcribed_utterances,
         audio_summary,
         output_dir_name=output_dir_name
     )
-    replaced_transcript = create_text_transcript(
-        replaced_utterances['transcribed_utterances']
-    )
-    
-    return replaced_transcript
 
+    return replaced_dict['transcript']
+
+def summarize_transcript( 
+    transcript: str, 
+    prompt_list: List[Dict],
+    system_instructions: str = None,
+    model_order: Optional[List[dict]] = None
+) -> str:
     
+    if not system_instructions:
+        system_instructions = "You are an expert at outlining and transcribing transcripts."
+
+    try:
+        summary = revise_with_prompt_list(
+            string_list=[transcript],
+            prompt_list=prompt_list,
+            concatenation_delimiter=f"\n{'-'*3}\nTranscript:\n{'-'*3}\n",
+            temperature=0.2,
+            max_tokens=4096
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to obtain a valid transcript summary after maximum attempts.")
+
+    return summary

@@ -1,34 +1,22 @@
-from genai_toolbox.text_prompting.model_calls import openai_text_response, anthropic_text_response, groq_text_response
-from genai_toolbox.helper_functions.string_helpers import concatenate_list_text_to_list_text
 
 from enum import Enum
-from typing import List, Optional
+from typing import List, Dict, Optional
+import os
 import logging
 import traceback
 
-from dotenv import load_dotenv
-load_dotenv(os.path.join(root_dir, '.env'))
+from genai_toolbox.text_prompting.model_calls import openai_text_response, anthropic_text_response, groq_text_response, fallback_text_response
+from genai_toolbox.helper_functions.string_helpers import concatenate_list_text_to_list_text
 
 logging.basicConfig(level=logging.INFO)
 
 default_temperature = 0.2
 default_max_tokens = 4096
 
-class Provider(Enum):
-    OPENAI = ("openai", "4o", openai_text_response)
-    ANTHROPIC = ("anthropic", "opus", anthropic_text_response)
-    GROQ = ("groq", "llama3-70b", groq_text_response)
-
-    def __init__(self, provider_name, default_model, function):
-        self.provider_name = provider_name
-        self.default_model = default_model
-        self.function = function
-
 def prompt_string_list(
     string_list: List[str],
     instructions: str,
-    provider: Provider = Provider.OPENAI,
-    model_choice: Optional[str] = None,
+    model_order: List[Dict],
     system_instructions: Optional[str] = None,
     temperature: float = default_temperature,
     max_tokens: int = default_max_tokens
@@ -43,8 +31,7 @@ def prompt_string_list(
         Args:
             string_list (List[str]): The list of input strings to be processed.
             instructions (str): The instructions to be applied to each string.
-            provider (Provider, optional): The AI provider to use. Defaults to Provider.OPENAI.
-            model_choice (Optional[str], optional): The specific model to use. If None, uses the provider's default model.
+            model_order (List[Dict]): The order of the models to be used.
             system_instructions (Optional[str], optional): Additional system-level instructions for the AI model.
             temperature (float, optional): The randomness of the model's output. Defaults to 0.2.
             max_tokens (int, optional): The maximum number of tokens in the response. Defaults to 4096.
@@ -65,8 +52,12 @@ def prompt_string_list(
             translated_strings = prompt_string_list(
                 string_list=input_strings,
                 instructions=instructions,
-                provider=Provider.OPENAI,
-                model_choice="4o",
+                model_order=[
+                    {
+                        "provider": "openai", 
+                        "model": "4o-mini"
+                    }
+                ],
                 temperature=0.3
             )
             
@@ -77,31 +68,27 @@ def prompt_string_list(
             ]
     """
     modified_list = []
-    model_choice = model_choice if model_choice is not None else provider.default_model
-    logging.info(f"Prompting {provider.provider_name} with model {model_choice} for {len(string_list)} strings")
 
     for index, input_string in enumerate(string_list, start=1):
         try:
             logging.info(f"Prompting string {index} of {len(string_list)}")
             prompt_string = instructions.format(input_string)
-            response = provider.function(
+            response = fallback_text_response(
                 prompt=prompt_string,
-                system_instructions=system_instructions if system_instructions is not None else "",
-                temperature=temperature,
-                max_tokens=max_tokens,
-                model_choice=model_choice
+                system_instructions=system_instructions,
+                model_order=model_order
             )
             modified_list.append(response)
         except Exception as e:
-            logging.error(f"Error prompting {provider.provider_name} with model {model_choice}: {e}")
+            logging.error(f"Error prompting string {index} of {len(string_list)}: {e}")
             traceback.print_exc()
     return modified_list
 
 def execute_prompt_dict(
     modified_strings: List[str],
     original_strings: List[str], 
-    prompt: dict,
-    concatenation_delimiter: str,
+    prompt_dict: dict,
+    concatenation_delimiter: str = f"\n{'-'*10}\n",
     temperature: float = default_temperature,
     max_tokens: int = default_max_tokens
 ) -> List[str]:
@@ -114,10 +101,10 @@ def execute_prompt_dict(
         Args:
             modified_strings (List[str]): A list of previously modified strings.
             original_strings (List[str]): A list of original input strings.
-            prompt (dict): A dictionary containing prompt configuration:
+            prompt_dict (dict): A dictionary containing prompt configuration:
                 - provider (str): The name of the AI provider (e.g., "openai").
                 - instructions (str): The instructions for the prompt.
-                - model_choice (str, optional): The specific model to use.
+                - model_order (List[Dict]): The order of the models to be used.
             concatenation_delimiter (str): The delimiter used to separate concatenated strings.
 
         Returns:
@@ -127,9 +114,13 @@ def execute_prompt_dict(
             modified_strings = ["Summary of chapter 1", "Summary of chapter 2"]
             original_strings = ["Full text of chapter 1", "Full text of chapter 2"]
             prompt = {
-                "provider": "openai",
                 "instructions": "Enhance the summary with more details from the original text.",
-                "model_choice": "gpt-4"
+                "model_order": [
+                    {
+                        "provider": "openai", 
+                        "model": "4o-mini"
+                    }
+                ]
             }
             concatenation_delimiter = "\n---\n"
             
@@ -143,10 +134,9 @@ def execute_prompt_dict(
             ValueError: If the prompt dictionary is missing required keys.
             Exception: Any exception raised during the execution of the prompt.
     """
-    provider = Provider[prompt["provider"].upper()]
-    instructions = prompt["instructions"] 
-    model_choice = prompt.get("model_choice", None)
-    system_instructions = prompt.get("system_instructions", None)
+    instructions = prompt_dict["instructions"] 
+    model_order = prompt_dict["model_order"]
+    system_instructions = prompt_dict.get("system_instructions", None)
     
     modified_strings = concatenate_list_text_to_list_text(
         modified_strings, 
@@ -155,9 +145,8 @@ def execute_prompt_dict(
     )
     return prompt_string_list(
         string_list=modified_strings,
-        provider=provider,
         instructions=instructions,
-        model_choice=model_choice,
+        model_order=model_order,
         system_instructions=system_instructions,
         temperature=temperature,
         max_tokens=max_tokens
@@ -213,13 +202,13 @@ def revise_with_prompt_list(
     revision_dict = {"Original": string_list}
     modified_strings = [""] * len(string_list)
     
-    for count, prompt in enumerate(prompt_list, start=1):
+    for count, prompt_dict in enumerate(prompt_list, start=1):
         try:
             logging.info(f"\n{'#' * 10}\nExecuting prompt {count}\n{'#' * 10}\n")
             modified_strings = execute_prompt_dict(
                 modified_strings=modified_strings, 
                 original_strings=revision_dict['Original'], 
-                prompt=prompt, 
+                prompt_dict=prompt_dict, 
                 concatenation_delimiter=concatenation_delimiter,
                 temperature=temperature,
                 max_tokens=max_tokens
@@ -240,21 +229,45 @@ if __name__ == "__main__":
     list_text = ["Pacers", "Bulls"]
     prompt_list = [
         {
-            "provider": "groq", 
             "instructions": "Who is the coach of {}?", 
-            "model_choice": "llama3-70b", 
+            "model_order": [
+                {
+                    "provider": "groq", 
+                    "model": "llama3-70b"
+                },
+                {
+                    "provider": "openai", 
+                    "model": "4o-mini"
+                }
+            ], 
             "system_instructions": "You are a helpful assistant that can answer questions about the coach of NBA teams."
         },
         {
-            "provider": "groq", 
             "instructions": "What is the experience of the coach? \nPrior info: {}", 
-            "model_choice": "llama3-70b", 
+            "model_order": [
+                {
+                    "provider": "groq", 
+                    "model": "llama3-70b"
+                },
+                {
+                    "provider": "openai", 
+                    "model": "4o-mini"
+                }
+            ], 
             "system_instructions": "You are a helpful assistant that can answer questions about the experience of NBA coaches."
         },
         {
-            "provider": "groq", 
             "instructions": "Who is the GM the coach reports to? \nPrior info: {}", 
-            "model_choice": "llama3-70b", 
+            "model_order": [
+                {
+                    "provider": "groq", 
+                    "model": "llama3-70b"
+                },
+                {
+                    "provider": "openai", 
+                    "model": "4o-mini"
+                }
+            ], 
             "system_instructions": "You are a helpful assistant that can answer questions about the GM of NBA teams."
         }
     ]
