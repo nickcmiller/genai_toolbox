@@ -85,7 +85,7 @@ def create_openai_embedding(
     model_choice: str,
     text: str, 
     client = openai_client()
-) -> Dict:
+) -> List[float]:
     """
         create_openai_embedding
 
