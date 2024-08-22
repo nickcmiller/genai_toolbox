@@ -1,6 +1,7 @@
 import re
 import os
 import json
+import ast
 from pathlib import Path
 import logging
 import traceback
@@ -11,36 +12,46 @@ import mimetypes
 logging.basicConfig(level=logging.INFO)
 
 def retrieve_file(
-    file: str,
+    file_name: str,
     dir_name: str = None
 ) -> Optional[Union[str, dict, list]]:
     """
-    Retrieves the content from a file saved using write_to_file.
+        Retrieve the content of a file and parse it into a Python object.
 
-    Args:
-        file (str): The name or path of the file.
-        dir_name (str, optional): The directory name where the file is located.
+        This function attempts to read a file specified by its name and directory. 
+        If the file is found, it tries to parse the content as JSON or a Python literal 
+        (using `ast.literal_eval`). If both parsing attempts fail, it raises an error.
 
-    Returns:
-        Optional[Union[str, dict, list]]: The content of the file, or None if there was an error.
+        Args:
+            file_name (str): The name of the file to retrieve.
+            dir_name (str, optional): The directory where the file is located. 
+                                       If not provided, the current working directory is used.
 
-    Raises:
-        IOError: If there is an error opening or reading the file.
+        Returns:
+            Optional[Union[str, dict, list]]: The content of the file parsed into a Python object. 
+            Returns None if the file cannot be read or parsed.
+
+        Raises:
+            IOError: If there is an error reading the file.
+            ValueError: If the content cannot be parsed as JSON or a Python literal.
     """
     try:
         if dir_name:
-            full_path = os.path.join(dir_name, file)
-        elif os.path.dirname(file):
-            full_path = file
+            full_path = os.path.join(dir_name, file_name)
+        elif os.path.dirname(file_name):
+            full_path = file_name
         else:
-            full_path = os.path.join(os.getcwd(), file) 
+            full_path = os.path.join(os.getcwd(), file_name)
 
         with open(full_path, 'r', encoding='utf-8') as f:
-            content = f.read()            
+            content = f.read()
             try:
-                return json.loads(content)
+                return json.loads(content, parse_constant=lambda x: x)
             except json.JSONDecodeError:
-                return content
+                try:
+                    return ast.literal_eval(content)
+                except (ValueError, SyntaxError):
+                    raise 
     except IOError as e:
         logging.error(f"retrieve_file failed to read file {full_path}: {e}")
         logging.error(traceback.format_exc())
@@ -48,8 +59,8 @@ def retrieve_file(
 
 def write_to_file(
     content: str | dict | list, 
-    file: str,
-    output_dir_name: str = None,
+    file_name: str,
+    dir_name: str = None,
     mode: str = 'w',
     encoding: str = 'utf-8'
 ) -> Path:
@@ -58,10 +69,10 @@ def write_to_file(
 
         Args:
             content (str | dict | list): The content to write to the file. Can be a string, a dictionary, or a list.
-            file (str): The name of the file to write to.
+            file_name (str): The name of the file to write to.
+            dir_name (str, optional): The name of the directory. If provided, the file will be created in this directory.
             mode (str, optional): The mode to open the file in. Defaults to 'w'.
             encoding (str, optional): The encoding to use when writing the file. Defaults to 'utf-8'.
-            output_dir_name (str, optional): The name of the output directory. If provided, the file will be created in this directory.
 
         Returns:
             Path: The path to the written file.
@@ -70,25 +81,25 @@ def write_to_file(
             ValueError: If the file argument is not a string or if the content is not a string, dictionary, or list.
             IOError: If there is an error writing to the file.
     """
-    if not isinstance(file, str):
-        raise ValueError("file must be a string.")
+    if not isinstance(file_name, str):
+        raise ValueError("file_name must be a string.")
     if not isinstance(content, (str, dict, list)):
         raise ValueError("content must be a string, a dictionary, or a list.")
 
     # Determine the directory and create it if it doesn't exist
-    if output_dir_name:
-        directory = Path(os.getcwd()) / output_dir_name
+    if dir_name:
+        directory = Path(os.getcwd()) / dir_name
     else:
-        directory = Path(os.path.dirname(file) or os.getcwd())
+        directory = Path(os.path.dirname(file_name) or os.getcwd())
     directory.mkdir(parents=True, exist_ok=True)
 
     # Create the full file path
-    if output_dir_name:
-        safe_title = ''.join(char if char.isalnum() or char in " -_" else '_' for char in Path(file).stem)
-        extension = Path(file).suffix or '.txt'
+    if dir_name:
+        safe_title = ''.join(char if char.isalnum() or char in " -_" else '_' for char in Path(file_name).stem)
+        extension = Path(file_name).suffix or '.txt'
         file_path = directory / f"{safe_title}{extension}"
     else:
-        file_path = directory / Path(file).name
+        file_path = directory / Path(file_name).name
 
     try:
         with open(file_path, mode, encoding=encoding) as f:
