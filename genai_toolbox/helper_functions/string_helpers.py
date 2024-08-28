@@ -114,7 +114,7 @@ def write_to_file(
         raise
 
 def delete_file(
-    file: str,
+    file_name: str,
     dir_name: str = None
 ) -> None:
     if dir_name:

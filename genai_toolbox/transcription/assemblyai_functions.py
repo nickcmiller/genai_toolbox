@@ -1,5 +1,5 @@
 from genai_toolbox.text_prompting.model_calls import groq_text_response, openai_text_response, anthropic_text_response, fallback_text_response
-from genai_toolbox.helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file, retrieve_file
+from genai_toolbox.helper_functions.string_helpers import evaluate_and_clean_valid_response, write_to_file
 
 import assemblyai as aai
 import openai
@@ -171,8 +171,8 @@ def generate_assemblyai_utterances(
         file_name = f"{output_dict['extracted_title']}_utterances.json"
         file_path = write_to_file(
             content=output_dict,
-            file=file_name,
-            output_dir_name=output_dir_name
+            file_name=file_name,
+            dir_name=output_dir_name
         )
 
     return output_dict
@@ -231,8 +231,8 @@ def generate_assemblyai_transcript(
         file_name = f"{response['extracted_title']}_transcript.txt"
         file_path = write_to_file(
             content=assemblyai_transcript,
-            file=file_name,
-            output_dir_name=output_dir_name
+            file_name=file_name,
+            dir_name=output_dir_name
         )
 
     return assemblyai_transcript
@@ -425,8 +425,8 @@ def replace_speakers_in_assemblyai_utterances(
     if output_dir_name:
         file_path = write_to_file(
             content=output_dict,
-            file=f"{utterances['extracted_title']}_replaced.json",
-            output_dir_name=output_dir_name
+            file_name=f"{utterances['extracted_title']}_replaced.json",
+            dir_name=output_dir_name
         )
 
     return output_dict

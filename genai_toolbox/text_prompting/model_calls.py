@@ -398,7 +398,7 @@ def _anthropic_generate_response(
         temperature=temperature
     )
     if not completion.content:
-        raise ValueError("No valid response received from the API")
+        raise ValueError("No valid response received fromcursor the API")
     end_time = time.time()
     response_time = end_time - start_time
     logging.info(f"API: Anthropic, Model: {model}, Response Time: {response_time:.2f}s")

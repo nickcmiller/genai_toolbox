@@ -110,7 +110,7 @@ def retrieve_youtube_channel_and_video_metadata_by_date(
         video_metadata = _get_video_metadata(youtube, channel_metadata, start_date, end_date, short_duration)
         return video_metadata
     except HttpError as e:
-        logger.error(f"An HTTP error occurred: {e}")
+        logging.error(f"An HTTP error occurred: {e}")
         raise
 
 def _get_channel_metadata(
@@ -135,7 +135,7 @@ def _get_channel_metadata(
             "uploadsPlaylistId": channel_info["contentDetails"]["relatedPlaylists"]["uploads"]
         }
     except HttpError as e:
-        logger.error(f"Error fetching channel metadata: {e}")
+        logging.error(f"Error fetching channel metadata: {e}")
         raise
 
 def _get_video_metadata(
@@ -186,7 +186,7 @@ def _get_video_metadata(
             request_params["pageToken"] = response["nextPageToken"]
     
     except HttpError as e:
-        logger.error(f"Error fetching video metadata: {e}")
+        logging.error(f"Error fetching video metadata: {e}")
         raise
 
     return video_metadata
