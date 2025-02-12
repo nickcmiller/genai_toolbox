@@ -105,8 +105,8 @@ load_dotenv()  # Load environment variables from .env file
 ```
 
 Note: You'll need to accept the terms of service on Hugging Face's website for the pyannote/speaker-diarization model before using the diarization features.
----
 
+---
 ## Directory Structure 
 
 ```
