@@ -35,7 +35,8 @@ The **GenAI Toolbox** is a comprehensive collection of tools and utility functio
 
 ### Environment Setup
 
-1. Install directly from the repository for the latest version:
+#### 1. 
+Install directly from the repository for the latest version:
 ```bash
 pip3 install git+https://github.com/yourusername/genai-toolbox.git
 ```
@@ -45,7 +46,8 @@ git clone https://github.com/yourusername/genai-toolbox.git
 cd genai-toolbox
 pip3 install -e .
 ```
-2. Install FFmpeg for audio processing based on your operating system:
+#### 2. 
+Install FFmpeg for audio processing based on your operating system:
 
 **Windows:**
 ```bash
