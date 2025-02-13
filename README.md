@@ -253,7 +253,7 @@ Each client abstracts error handling and logging, making it easier to integrate 
 Below is a basic example of how to use some parts of the toolbox:
 
 ```python
-Example: Download a YouTube video and generate an embedding for a text chunk.
+# Example: Download a YouTube video and generate an embedding for a text chunk.
 from genai_toolbox.download_sources.youtube_functions import yt_dlp_download
 from genai_toolbox.chunk_and_embed.embedding_functions import create_embedding_for_dict
 
