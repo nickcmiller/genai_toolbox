@@ -262,17 +262,13 @@ def identify_speakers(
 
     model_order = [
         {
-            "provider": "groq", 
-            "model": "llama3.1-70b"
-        },
-        {
-            "provider": "perplexity", 
-            "model": "llama3.1-70b"
-        },
-        {
             "provider": "anthropic", 
             "model": "sonnet"
         },
+        {
+            "provider": "groq", 
+            "model": "llama3.3-70b"
+        }, 
     ]
 
     speaker_reference_guess = fallback_text_response(
@@ -280,6 +276,7 @@ def identify_speakers(
         system_instructions=speaker_references_system_prompt,
         model_order=model_order
     )
+    logging.info(f"Speaker reference guess: {speaker_reference_guess}")
 
     prompt = f"""
         Using the context of the conversation in the transcript, and the summary, identify the participating speakers.

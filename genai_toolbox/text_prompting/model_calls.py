@@ -178,8 +178,7 @@ def groq_text_response(
         "llama3-8b": "llama3-8b-8192",
         "llama3-70b": "llama3-70b-8192",
         "llama3.1-8b": "llama-3.1-8b-instant",
-        "llama3.1-70b": "llama-3.1-70b-versatile",
-        "llama3.1-405b": "llama-3.1-405b-reasoning",
+        "llama3.3-70b": "llama-3.3-70b-versatile",
         "mixtral-8x7b": "mixtral-8x7b-32768",
         "gemma": "gemma-7b-it"
     }
@@ -307,9 +306,9 @@ def anthropic_text_response(
     client = get_client(api="anthropic")
 
     model_choices = {
-        "opus": "claude-3-opus-20240229",
-        "haiku": "claude-3-haiku-20240307",
-        "sonnet": "claude-3-5-sonnet-20240620",
+        "opus": "claude-3-opus-latest",
+        "haiku": "claude-3-5-haiku-latest",
+        "sonnet": "claude-3-7-sonnet-latest",
     }
     if model_choice not in model_choices:
         raise ValueError(f"Invalid model_choice. Available options: {list(model_choices.keys())}")
@@ -502,11 +501,7 @@ default_fallback_model_order = [
     },
     {
         "provider": "groq", 
-        "model": "llama3.1-70b"
-    },
-    {
-        "provider": "perplexity", 
-        "model": "llama3.1-70b"
+        "model": "llama3.3-70b"
     },
     {
         "provider": "anthropic", 
