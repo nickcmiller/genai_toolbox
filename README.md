@@ -93,9 +93,6 @@ YOUTUBE_API_KEY=your_youtube_key
 
 # Required for Hugging Face's pyannote-audio (diarization)
 HUGGINGFACE_ACCESS_TOKEN=your_huggingface_key
-
-# Optional for Trufflepig document indexing
-TRUFFLEPIG_API_KEY=your_trufflepig_key
 ```
 
 If using a `.env` file, you can load it in your Python code:
@@ -116,7 +113,6 @@ genai_toolbox/
 │ ├── chunking_functions.py 
 │ ├── embedding_functions.py 
 │ ├── llms_with_queries.py 
-│ └── trufflepig_functions.py 
 ├── clients/
 │ ├── init.py
 │ ├── anthropic_client.py 
@@ -170,9 +166,6 @@ genai_toolbox/
 - **llms_with_queries.py**  
   - *llm_response_with_query()*: Combines similar source chunks and a user question to generate a detailed LLM-based answer.
   - *stream_response_with_query()*: Similar to the above, but supports streaming API responses.
-
-- **trufflepig_functions.py**  
-  - Functions to interface with the Trufflepig client such as initializing, uploading documents, and searching the index.
 
 ---
 

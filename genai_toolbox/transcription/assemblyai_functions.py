@@ -17,42 +17,18 @@ aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
 
 def transcribe_audio(
     audio_file_path: str
-) -> aai.transcriber.Transcript:
+) -> aai.Transcript:
     """
-        Transcribes an audio file using the AssemblyAI library.
+        Transcribes an audio file using AssemblyAI's transcription service.
+
+        This function takes an audio file path as input and transcribes it using AssemblyAI's
+        transcription service. It returns the transcription response from AssemblyAI.
 
         Args:
-            audio_file_path (str): The path to the audio file to transcribe.
+            audio_file_path (str): The path to the audio file to be transcribed.
 
         Returns:
-            aai.transcriber.Transcript: The transcription response from AssemblyAI.
-
-        Raises:
-            FileNotFoundError: If the audio file cannot be found.
-            IOError: If there is an issue with reading the audio file.
-            RuntimeError: If transcription fails due to API errors.
-
-        Example of response format:
-            {
-                "utterances": [
-                    {
-                        "confidence": 0.7246,
-                        "end": 3738,
-                        "speaker": "A",
-                        "start": 570,
-                        "text": "Um hey, Erica.",
-                        "words": [...]
-                    },
-                    {
-                        "confidence": 0.6015,
-                        "end": 4430,
-                        "speaker": "B",
-                        "start": 3834,
-                        "text": "One in.",
-                        "words": [...]
-                    }
-                ]
-            }
+            aai.Transcript: The transcription response from AssemblyAI.
     """
     if not os.path.exists(audio_file_path):
         logging.error(f"Audio file does not exist: {audio_file_path}")
@@ -63,16 +39,23 @@ def transcribe_audio(
     try:
         transcriber = aai.Transcriber()
         response = transcriber.transcribe(audio_file_path, config=config)
+        
+        # Wait for transcription to complete
+        while response.status not in ['completed', 'error']:
+            time.sleep(1)  # Add a small delay between checks
+        
+        if response.status == 'error':
+            logging.error(f"Transcription failed: {response.error}")
+            raise RuntimeError(f"Transcription error: {response.error}")
+        
         logging.info(f"Transcription successful for file: {audio_file_path}")
         return response
-    except aai.exceptions.APIError as api_error:
-        logging.error(f"API error during transcription: {api_error}")
-        raise RuntimeError(f"API error: {api_error}")
+    
     except Exception as e:
         logging.error(f"Unexpected error during transcription: {e}")
         traceback.print_exc()
-        raise RuntimeError(f"Unexpected error during transcription: {e}")
-
+        raise RuntimeError(f"Transcription failed: {str(e)}")
+    
 def create_utterance_json(
     transcriber_transcript: aai.transcriber.Transcript,
     fields_to_exclude: List[str] = None
