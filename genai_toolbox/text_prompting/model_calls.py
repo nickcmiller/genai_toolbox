@@ -8,10 +8,48 @@ import json
 import time
 import requests
 
-
 from genai_toolbox.clients.groq_client import groq_client
 from genai_toolbox.clients.openai_client import openai_client
 from genai_toolbox.clients.anthropic_client import anthropic_client
+
+PROVIDER_MODEL_CAPABILITIES = {
+    "groq": {
+        "deepseek-r1-distill-llama-70b": {"reasoning_format": True},
+        "deepseek-r1-distill-qwen-32b": {"reasoning_format": True},
+        "llama3-8b-8192": {"reasoning_format": False},
+        "llama3-70b-8192": {"reasoning_format": False},
+        "llama-3.1-8b-instant": {"reasoning_format": False},
+        "llama-3.3-70b-versatile": {"reasoning_format": False},
+        "mixtral-8x7b-32768": {"reasoning_format": False},
+        "gemma-7b-it": {"reasoning_format": False}
+    }
+    # Add other providers as needed
+}
+
+def model_supports_capability(
+        api: str, 
+        model: str,
+        capability: str
+) -> bool:
+    """
+    Check if a specific model supports a capability.
+    
+    Args:
+        api (str): The API to use for text generation.
+        model (str): The model to use for text generation.
+        capability (str): The capability to check for.
+
+    Returns:
+        bool: True if the model supports the capability, False otherwise.
+    """
+    if api not in PROVIDER_MODEL_CAPABILITIES:
+        return False
+    
+    provider_models = PROVIDER_MODEL_CAPABILITIES[api]
+    if model not in provider_models:
+        return False
+    
+    return provider_models[model].get(capability, False)
 
 def get_client(
     api: str
@@ -62,19 +100,25 @@ def openai_compatible_response(
     model: str,
     temperature: float = 0.2,
     max_tokens: int = 4096,
-    stream: bool = False
+    stream: bool = False,
+    reasoning_format: Optional[str] = None
 ) -> Union[str, Generator[str, None, None]]:
     client = get_client(api)
     start_time = time.time()
 
     try:
-        completion = client.create(
-            messages=messages, 
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=stream
-        )
+        params = {
+            "messages": messages, 
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": stream
+        }
+        
+        if reasoning_format is not None and model_supports_capability(api, model, "reasoning_format"):
+            params["reasoning_format"] = reasoning_format
+        
+        completion = client.create(**params)
         
         if stream:
             return _stream_response(completion, api, model, start_time)
@@ -168,7 +212,8 @@ def groq_text_response(
     model_choice: str = "llama3-70b", 
     temperature: float = 0.2,
     max_tokens: int = 4096,
-    stream: bool = False
+    stream: bool = False,
+    reasoning_format: Optional[str] = None
 ) -> Union[str, Generator[str, None, None]]:
     """
     Use OpenAI format to generate a text response using Groq.
@@ -180,7 +225,9 @@ def groq_text_response(
         "llama3.1-8b": "llama-3.1-8b-instant",
         "llama3.3-70b": "llama-3.3-70b-versatile",
         "mixtral-8x7b": "mixtral-8x7b-32768",
-        "gemma": "gemma-7b-it"
+        "gemma": "gemma-7b-it",
+        "r1-distill-llama-70b": "deepseek-r1-distill-llama-70b",
+        "r1-distill-qwen-32b": "deepseek-r1-distill-qwen-32b"
     }
     if model_choice not in model_choices:
         raise ValueError(f"Invalid model_choice. Available options: {list(model_choices.keys())}")
@@ -200,7 +247,8 @@ def groq_text_response(
             model=model, 
             temperature=temperature, 
             max_tokens=max_tokens, 
-            stream=stream
+            stream=stream,
+            reasoning_format=reasoning_format
         )
     except Exception as e:
         logging.error(f"Failed to generate response with Groq: {e}")
@@ -495,7 +543,7 @@ def _perplexity_generate_response(
     return content
 
 default_fallback_model_order = [
-     {
+    {
         "provider": "openai", 
         "model": "4o-mini"
     },
@@ -516,7 +564,8 @@ def fallback_text_response(
     model_order: List[Dict[str, str]] = default_fallback_model_order,
     temperature: float = 0.2,
     max_tokens: int = 4096,
-    stream: bool = False
+    stream: bool = False,
+    reasoning_format: Optional[str] = None
 ) -> Union[str, Generator[str, None, None]]:
     """
     Generate a text response using multiple APIs with fallback support.
@@ -554,15 +603,20 @@ def fallback_text_response(
 
         try:
             start_time = time.time()
-            response = api_functions[provider](
-                prompt=prompt,
-                system_instructions=system_instructions,
-                history_messages=history_messages,
-                model_choice=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=stream
-            )
+            kwargs = {
+                "prompt": prompt,
+                "system_instructions": system_instructions,
+                "history_messages": history_messages,
+                "model_choice": model,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": stream
+            }
+            
+            if provider == "groq" and reasoning_format is not None:
+                kwargs["reasoning_format"] = reasoning_format
+                
+            response = api_functions[provider](**kwargs)
             end_time = time.time()
             response_time = end_time - start_time
             logging.info(f"fallback_text_response generated{' streaming' if stream else ''} response using {provider} API. Response Time: {response_time:.2f}s")

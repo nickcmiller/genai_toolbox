@@ -252,7 +252,7 @@ def identify_speakers(
     speaker_references_prompt = f"""
         What did each Speaker call each other in the transcript?
 
-        What would you guess each Speaker's name is? Explain your reasoning.
+        What would you guess each Speaker's name is? Why did you make each guess? Explain your reasoning.
 
         Transcript:\n
         {transcript}
@@ -262,19 +262,20 @@ def identify_speakers(
 
     model_order = [
         {
+            "provider": "groq", 
+            "model": "r1-distill-llama-70b"
+        },
+        {
             "provider": "anthropic", 
             "model": "sonnet"
         },
-        {
-            "provider": "groq", 
-            "model": "llama3.3-70b"
-        }, 
     ]
 
     speaker_reference_guess = fallback_text_response(
         prompt=speaker_references_prompt,
         system_instructions=speaker_references_system_prompt,
-        model_order=model_order
+        model_order=model_order,
+        reasoning_format="hidden"
     )
     logging.info(f"Speaker reference guess: {speaker_reference_guess}")
 
@@ -305,7 +306,8 @@ def identify_speakers(
         Example 2:
         {
             "Speaker A": "FirstName LastName", 
-            "Speaker B": "FirstName LastName"
+            "Speaker B": "FirstName LastName",
+            "Speaker C": "FirstName LastName"
         }
         ```
         All keys must be in the format 'Speaker X' where X is any letter or number
